@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	// "errors"
+	// "fmt"
 	"time"
 
 	"mobilka/internal/models"
 	"mobilka/internal/repository"
 	"mobilka/internal/utils"
+	// "github.com/google/uuid"
 )
 
 // AdminService handles admin operations
@@ -25,26 +28,24 @@ func NewAdminService(
 
 // Create creates a new admin
 func (s *AdminService) Create(ctx context.Context, req *models.AdminCreateRequest) (*models.Admin, error) {
+
 	// Hash passwords
-	smsPasswordHash, err := utils.HashPassword(req.SmsPassword)
-	if err != nil {
-		return nil, err
+	var smsPasswordHash string
+	var paymentPasswordHash string
+	var err error
+
+	if req.SmsPassword != "" {
+		smsPasswordHash, err = utils.HashPassword(req.SmsPassword)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	paymentPasswordHash, err := utils.HashPassword(req.PaymentPassword)
-	if err != nil {
-		return nil, err
-	}
-
-	// Generate tokens
-	systemToken, err := utils.GenerateSystemToken()
-	if err != nil {
-		return nil, err
-	}
-
-	smsToken, err := utils.GenerateSmsToken()
-	if err != nil {
-		return nil, err
+	if req.PaymentPassword != "" {
+		paymentPasswordHash, err = utils.HashPassword(req.PaymentPassword)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Create admin
@@ -53,9 +54,10 @@ func (s *AdminService) Create(ctx context.Context, req *models.AdminCreateReques
 		Email:                  req.Email,
 		CompanyName:            req.CompanyName,
 		SystemID:               req.SystemID,
-		SystemToken:            systemToken,
+		SystemToken:            req.SystemToken,
 		SystemTokenUpdatedTime: time.Now(),
-		SmsToken:               smsToken,
+		SmsToken:               req.SmsToken,
+		SmsTokenUpdatedTime:    time.Now(),
 		SmsEmail:               req.SmsEmail,
 		SmsPassword:            smsPasswordHash,
 		SmsMessage:             req.SmsMessage,
@@ -112,6 +114,18 @@ func (s *AdminService) Update(ctx context.Context, id int, req *models.AdminUpda
 		admin.SystemID = req.SystemID
 	}
 
+	// Update system token if provided
+	if req.SystemToken != "" {
+		admin.SystemToken = req.SystemToken
+		admin.SystemTokenUpdatedTime = time.Now()
+	}
+
+	// Update SMS token if provided
+	if req.SmsToken != "" {
+		admin.SmsToken = req.SmsToken
+		admin.SmsTokenUpdatedTime = time.Now()
+	}
+
 	if req.SmsEmail != "" {
 		admin.SmsEmail = req.SmsEmail
 	}
@@ -149,41 +163,27 @@ func (s *AdminService) Update(ctx context.Context, id int, req *models.AdminUpda
 	return admin, nil
 }
 
-// RegenerateSystemToken regenerates the system token for an admin
-func (s *AdminService) RegenerateSystemToken(ctx context.Context, id int) (string, error) {
-	// Generate new token
-	systemToken, err := utils.GenerateSystemToken()
-	if err != nil {
-		return "", err
-	}
-
-	// Update in database
-	err = s.adminRepo.UpdateSystemToken(ctx, id, systemToken)
-	if err != nil {
-		return "", err
-	}
-
-	return systemToken, nil
-}
-
-// RegenerateSmsToken regenerates the SMS token for an admin
-func (s *AdminService) RegenerateSmsToken(ctx context.Context, id int) (string, error) {
-	// Generate new token
-	smsToken, err := utils.GenerateSmsToken()
-	if err != nil {
-		return "", err
-	}
-
-	// Update in database
-	err = s.adminRepo.UpdateSmsToken(ctx, id, smsToken)
-	if err != nil {
-		return "", err
-	}
-
-	return smsToken, nil
-}
-
 // Delete deletes an admin
 func (s *AdminService) Delete(ctx context.Context, id int) error {
 	return s.adminRepo.Delete(ctx, id)
+}
+
+// GetByIDPublic retrieves an admin by ID and increments the users count
+func (s *AdminService) GetByIDPublic(ctx context.Context, id int) (*models.Admin, error) {
+	// Get admin
+	admin, err := s.adminRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment users count
+	err = s.adminRepo.IncrementUsersCount(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update local admin object to reflect the incremented count
+	admin.Users++
+
+	return admin, nil
 }

@@ -34,8 +34,8 @@ func (s *ImageService) SaveImage(file *multipart.FileHeader) (string, error) {
 	// Generate a unique ID
 	uniqueID := uuid.New().String()
 
-	// Create the final filename with the format: filename!@#unique_id.extension
-	filename := fmt.Sprintf("%s!@#%s%s", origName, uniqueID, ext)
+	// Create the final filename with the format: filename!_unique_id.extension
+	filename := fmt.Sprintf("%s!_%s%s", origName, uniqueID, ext)
 
 	// Create the full path
 	fullPath := filepath.Join(s.uploadPath, filename)

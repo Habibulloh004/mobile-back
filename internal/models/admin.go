@@ -14,21 +14,26 @@ type Admin struct {
 	SystemToken            string    `json:"system_token"`
 	SystemTokenUpdatedTime time.Time `json:"system_token_updated_time"`
 	SmsToken               string    `json:"sms_token"`
+	SmsTokenUpdatedTime    time.Time `json:"sms_token_updated_time"` // Added field
 	SmsEmail               string    `json:"sms_email"`
-	SmsPassword            string    `json:"-"` // Password is not exposed in JSON responses
+	SmsPassword            string    `json:"sms_password"` // Password is not exposed in JSON responses
 	SmsMessage             string    `json:"sms_message"`
 	PaymentUsername        string    `json:"payment_username"`
-	PaymentPassword        string    `json:"-"` // Password is not exposed in JSON responses
+	PaymentPassword        string    `json:"payment_password"` // Password is not exposed in JSON responses
+	Users                  int       `json:"users"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }
 
 // AdminCreateRequest represents the creation request for an admin
+
 type AdminCreateRequest struct {
 	UserName        string `json:"user_name" validate:"required"`
 	Email           string `json:"email" validate:"required,email"`
 	CompanyName     string `json:"company_name" validate:"required"`
-	SystemID        string `json:"system_id" validate:"required"`
+	SystemID        string `json:"system_id"`
+	SystemToken     string `json:"system_token"`
+	SmsToken        string `json:"sms_token"`
 	SmsEmail        string `json:"sms_email"`
 	SmsPassword     string `json:"sms_password"`
 	SmsMessage      string `json:"sms_message"`
@@ -42,9 +47,11 @@ type AdminUpdateRequest struct {
 	Email           string `json:"email" validate:"omitempty,email"`
 	CompanyName     string `json:"company_name"`
 	SystemID        string `json:"system_id"`
+	SystemToken     string `json:"system_token"`
 	SmsEmail        string `json:"sms_email" validate:"omitempty,email"`
 	SmsPassword     string `json:"sms_password"`
 	SmsMessage      string `json:"sms_message"`
+	SmsToken        string `json:"sms_token"`
 	PaymentUsername string `json:"payment_username"`
 	PaymentPassword string `json:"payment_password"`
 }
@@ -68,7 +75,11 @@ type AdminResponse struct {
 	SmsToken               string    `json:"sms_token"`
 	SmsEmail               string    `json:"sms_email"`
 	SmsMessage             string    `json:"sms_message"`
+	SmsPassword            string    `json:"sms_password"`
+	SmsTokenUpdatedTime    time.Time `json:"sms_token_updated_time"`
 	PaymentUsername        string    `json:"payment_username"`
+	PaymentPassword        string    `json:"payment_password"`
+	Users                  int       `json:"users"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }
@@ -86,7 +97,11 @@ func (a *Admin) ToResponse() AdminResponse {
 		SmsToken:               a.SmsToken,
 		SmsEmail:               a.SmsEmail,
 		SmsMessage:             a.SmsMessage,
+		SmsPassword:            a.SmsPassword,
+		SmsTokenUpdatedTime:    a.SmsTokenUpdatedTime,
 		PaymentUsername:        a.PaymentUsername,
+		PaymentPassword:        a.PaymentPassword,
+		Users:                  a.Users,
 		CreatedAt:              a.CreatedAt,
 		UpdatedAt:              a.UpdatedAt,
 	}

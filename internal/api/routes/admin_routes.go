@@ -9,6 +9,7 @@ import (
 
 // SetupAdminRoutes sets up all routes related to admin operations
 func SetupAdminRoutes(api fiber.Router, adminHandler *handlers.AdminHandler) {
+	api.Get("/public/admins/:id", adminHandler.GetByIDPublic)
 	// Admin routes for super admin
 	adminRoutes := api.Group("/admins")
 	adminRoutes.Use(middlewares.Protected(), middlewares.SuperAdminOnly())
@@ -17,8 +18,6 @@ func SetupAdminRoutes(api fiber.Router, adminHandler *handlers.AdminHandler) {
 	adminRoutes.Get("/:id", adminHandler.GetByID)
 	adminRoutes.Put("/:id", adminHandler.Update)
 	adminRoutes.Delete("/:id", adminHandler.Delete)
-	adminRoutes.Post("/:id/system-token", adminHandler.RegenerateSystemToken)
-	adminRoutes.Post("/:id/sms-token", adminHandler.RegenerateSmsToken)
 
 	// Admin profile route for regular admins
 	adminProfileRoutes := api.Group("/admin")

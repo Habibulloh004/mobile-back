@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"mobilka/internal/models"
 	"mobilka/internal/service"
 	"mobilka/internal/utils"
@@ -32,12 +33,51 @@ func (h *AdminHandler) Create(c *fiber.Ctx) error {
 		})
 	}
 
+	// Validate required fields
+	if req.UserName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Username is required",
+		})
+	}
+
+	if req.Email == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Email is required",
+		})
+	}
+
+	if req.CompanyName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Company name is required",
+		})
+	}
+
+	if req.SystemID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "System id is required",
+		})
+	}
+
 	// Create admin
 	admin, err := h.adminService.Create(c.Context(), &req)
 	if err != nil {
+		// Check if it's a detailed app error
+		var appErr *utils.AppError
+		if errors.As(err, &appErr) {
+			return c.Status(appErr.Code).JSON(fiber.Map{
+				"status":  utils.StatusError,
+				"message": appErr.Message,
+			})
+		}
+
+		// Default error response
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  utils.StatusError,
-			"message": "Failed to create admin",
+			"message": "Failed to create admin: " + err.Error(),
 		})
 	}
 
@@ -183,78 +223,6 @@ func (h *AdminHandler) Update(c *fiber.Ctx) error {
 	})
 }
 
-// RegenerateSystemToken handles regenerating an admin's system token
-func (h *AdminHandler) RegenerateSystemToken(c *fiber.Ctx) error {
-	// Get admin ID from URL
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  utils.StatusError,
-			"message": "Invalid admin ID",
-		})
-	}
-
-	// Regenerate system token
-	token, err := h.adminService.RegenerateSystemToken(c.Context(), id)
-	if err != nil {
-		if err == utils.ErrUserNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status":  utils.StatusError,
-				"message": "Admin not found",
-			})
-		}
-
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  utils.StatusError,
-			"message": "Failed to regenerate system token",
-		})
-	}
-
-	// Return response
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": utils.StatusSuccess,
-		"data": fiber.Map{
-			"system_token": token,
-		},
-	})
-}
-
-// RegenerateSmsToken handles regenerating an admin's SMS token
-func (h *AdminHandler) RegenerateSmsToken(c *fiber.Ctx) error {
-	// Get admin ID from URL
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  utils.StatusError,
-			"message": "Invalid admin ID",
-		})
-	}
-
-	// Regenerate SMS token
-	token, err := h.adminService.RegenerateSmsToken(c.Context(), id)
-	if err != nil {
-		if err == utils.ErrUserNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status":  utils.StatusError,
-				"message": "Admin not found",
-			})
-		}
-
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  utils.StatusError,
-			"message": "Failed to regenerate SMS token",
-		})
-	}
-
-	// Return response
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": utils.StatusSuccess,
-		"data": fiber.Map{
-			"sms_token": token,
-		},
-	})
-}
-
 // Delete handles deleting an admin
 func (h *AdminHandler) Delete(c *fiber.Ctx) error {
 	// Get admin ID from URL
@@ -286,5 +254,39 @@ func (h *AdminHandler) Delete(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  utils.StatusSuccess,
 		"message": "Admin deleted successfully",
+	})
+}
+
+// GetByIDPublic handles retrieving an admin by ID without authentication
+func (h *AdminHandler) GetByIDPublic(c *fiber.Ctx) error {
+	// Get admin ID from URL
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Invalid admin ID",
+		})
+	}
+
+	// Get admin and increment users count
+	admin, err := h.adminService.GetByIDPublic(c.Context(), id)
+	if err != nil {
+		if err == utils.ErrUserNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"status":  utils.StatusError,
+				"message": "Admin not found",
+			})
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Failed to retrieve admin",
+		})
+	}
+
+	// Return response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": utils.StatusSuccess,
+		"data":   admin.ToResponse(),
 	})
 }
