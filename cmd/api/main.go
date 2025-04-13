@@ -14,6 +14,7 @@ import (
 	"mobilka/internal/api/routes"
 	"mobilka/internal/repository"
 	"mobilka/internal/service"
+	"mobilka/internal/tasks"
 	"mobilka/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -68,6 +69,10 @@ func main() {
 		}
 	}
 
+	// Start subscription checker task
+	subscriptionChecker := setupSubscriptionChecker(db)
+	subscriptionChecker.Start()
+
 	// Print startup information
 	log.Printf("Server starting on port %d", cfg.ServerPort)
 	log.Printf("Environment: %s", cfg.Environment)
@@ -85,6 +90,9 @@ func main() {
 	<-quit
 
 	log.Println("Shutting down server...")
+
+	// Stop subscription checker
+	subscriptionChecker.Stop()
 
 	// Shutdown server with 5 second timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -154,6 +162,20 @@ func setupSuperAdmin(db *pgxpool.Pool) error {
 	log.Println("====================================")
 
 	return nil
+}
+
+// Setup subscription checker task
+func setupSubscriptionChecker(db *pgxpool.Pool) *tasks.SubscriptionChecker {
+	// Create repositories needed for the subscription checker
+	adminRepo := repository.NewAdminRepository(db)
+	paymentRepo := repository.NewPaymentHistoryRepository(db)
+	subscriptionTierRepo := repository.NewSubscriptionTierRepository(db)
+
+	// Create payment service
+	paymentService := service.NewPaymentService(paymentRepo, adminRepo, subscriptionTierRepo)
+
+	// Create subscription checker with 12-hour interval
+	return tasks.NewSubscriptionChecker(paymentService, 12*time.Hour)
 }
 
 // Custom error handler

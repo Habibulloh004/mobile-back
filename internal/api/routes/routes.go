@@ -17,10 +17,10 @@ import (
 func SetupPublicRoutes(api fiber.Router, bannerHandler *handlers.BannerHandler, notificationHandler *handlers.NotificationHandler) {
 	// Public routes group (no auth required)
 	publicRoutes := api.Group("/public")
-	
+
 	// Banner routes
 	publicRoutes.Get("/banners/admin/:adminID", bannerHandler.GetPublicByAdminID)
-	
+
 	// Notification routes
 	publicRoutes.Get("/notifications/admin/:adminID", notificationHandler.GetPublicByAdminID)
 }
@@ -39,6 +39,9 @@ func SetupRoutes(app *fiber.App, db *pgxpool.Pool, cfg *config.Config) {
 	notificationRepo := repository.NewNotificationRepository(db)
 	fcmTokenRepo := repository.NewFCMTokenRepository(db)
 
+	subscriptionTierRepo := repository.NewSubscriptionTierRepository(db)
+	paymentRepo := repository.NewPaymentHistoryRepository(db)
+
 	// Create services
 	authService := service.NewAuthService(superAdminRepo, adminRepo)
 	superAdminService := service.NewSuperAdminService(superAdminRepo)
@@ -48,6 +51,9 @@ func SetupRoutes(app *fiber.App, db *pgxpool.Pool, cfg *config.Config) {
 	fcmTokenService := service.NewFCMTokenService(fcmTokenRepo)
 	imageService := service.NewImageService(cfg.ImageUploadPath)
 
+	subscriptionTierService := service.NewSubscriptionTierService(subscriptionTierRepo)
+	paymentService := service.NewPaymentService(paymentRepo, adminRepo, subscriptionTierRepo)
+
 	// Create handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	superAdminHandler := handlers.NewSuperAdminHandler(superAdminService)
@@ -56,6 +62,9 @@ func SetupRoutes(app *fiber.App, db *pgxpool.Pool, cfg *config.Config) {
 	notificationHandler := handlers.NewNotificationHandler(notificationService)
 	fcmTokenHandler := handlers.NewFCMTokenHandler(fcmTokenService)
 	imageHandler := handlers.NewImageHandler(imageService)
+
+	subscriptionTierHandler := handlers.NewSubscriptionTierHandler(subscriptionTierService)
+	paymentHandler := handlers.NewPaymentHandler(paymentService)
 
 	// Setup API routes
 	api := app.Group("/api")
@@ -69,6 +78,9 @@ func SetupRoutes(app *fiber.App, db *pgxpool.Pool, cfg *config.Config) {
 	SetupFCMTokenRoutes(api, fcmTokenHandler)
 	SetupImageRoutes(app, api, imageHandler)
 	SetupPublicRoutes(api, bannerHandler, notificationHandler)
+
+	SetupSubscriptionTierRoutes(api, subscriptionTierHandler)
+	SetupPaymentRoutes(api, paymentHandler, subscriptionTierHandler)
 
 	// Setup 404 handler
 	app.Use(func(c *fiber.Ctx) error {
