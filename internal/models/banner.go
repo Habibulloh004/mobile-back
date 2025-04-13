@@ -17,16 +17,18 @@ type Banner struct {
 
 // BannerCreateRequest represents the creation request for a banner
 type BannerCreateRequest struct {
-	Image string `json:"image" validate:"required"`
-	Title string `json:"title" validate:"required"`
-	Body  string `json:"body" validate:"required"`
+	AdminID int    `json:"admin_id"`
+	Image   string `json:"image" validate:"required"`
+	Title   string `json:"title" validate:"required"`
+	Body    string `json:"body" validate:"required"`
 }
 
 // BannerUpdateRequest represents the update request for a banner
 type BannerUpdateRequest struct {
-	Image string `json:"image"`
-	Title string `json:"title"`
-	Body  string `json:"body"`
+	AdminID int    `json:"admin_id"`
+	Image   string `json:"image"`
+	Title   string `json:"title"`
+	Body    string `json:"body"`
 }
 
 // BannerResponse represents the response for banner

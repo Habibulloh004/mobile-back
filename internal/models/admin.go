@@ -54,6 +54,7 @@ type AdminUpdateRequest struct {
 	SmsToken        string `json:"sms_token"`
 	PaymentUsername string `json:"payment_username"`
 	PaymentPassword string `json:"payment_password"`
+	AdminID         int    `json:"admin_id,omitempty"`
 }
 
 // AdminLoginRequest represents the login request for admin

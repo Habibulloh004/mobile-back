@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"mobilka/internal/models"
 	"mobilka/internal/service"
 	"mobilka/internal/utils"
@@ -182,45 +184,64 @@ func (h *AdminHandler) GetProfile(c *fiber.Ctx) error {
 
 // Update handles updating an admin
 func (h *AdminHandler) Update(c *fiber.Ctx) error {
-	// Get admin ID from URL
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  utils.StatusError,
-			"message": "Invalid admin ID",
-		})
-	}
+    // Get admin ID from URL
+    id, err := strconv.Atoi(c.Params("id"))
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "status":  utils.StatusError,
+            "message": "Invalid admin ID",
+        })
+    }
 
-	var req models.AdminUpdateRequest
+    // Log the raw request body for debugging
+    rawBody := c.Body()
+    fmt.Printf("Raw request body for admin ID %d update: %s\n", id, string(rawBody))
 
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  utils.StatusError,
-			"message": "Invalid request body",
-		})
-	}
+    var req models.AdminUpdateRequest
+    if err := c.BodyParser(&req); err != nil {
+        fmt.Printf("Error parsing request body: %v\n", err)
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "status":  utils.StatusError,
+            "message": "Invalid request body: " + err.Error(),
+        })
+    }
 
-	// Update admin
-	admin, err := h.adminService.Update(c.Context(), id, &req)
-	if err != nil {
-		if err == utils.ErrUserNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status":  utils.StatusError,
-				"message": "Admin not found",
-			})
-		}
+    // Log parsed request for debugging
+    fmt.Printf("Parsed request for admin ID %d update: %+v\n", id, req)
 
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  utils.StatusError,
-			"message": "Failed to update admin",
-		})
-	}
+    // Check if system_token is in the request (even if parsing didn't set it)
+    var requestMap map[string]interface{}
+    if err := json.Unmarshal(rawBody, &requestMap); err == nil {
+        if systemToken, exists := requestMap["system_token"]; exists {
+            fmt.Printf("Found system_token in raw map: %v\n", systemToken)
+            if req.SystemToken == "" {
+                req.SystemToken = fmt.Sprintf("%v", systemToken)
+                fmt.Printf("Setting req.SystemToken to: %s\n", req.SystemToken)
+            }
+        }
+    }
 
-	// Return response
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": utils.StatusSuccess,
-		"data":   admin.ToResponse(),
-	})
+    // Update admin
+    admin, err := h.adminService.Update(c.Context(), id, &req)
+    if err != nil {
+        if err == utils.ErrUserNotFound {
+            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+                "status":  utils.StatusError,
+                "message": "Admin not found",
+            })
+        }
+
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "status":  utils.StatusError,
+            "message": "Failed to update admin: " + err.Error(),
+        })
+    }
+
+    // Return response
+    return c.Status(fiber.StatusOK).JSON(fiber.Map{
+        "status": utils.StatusSuccess,
+        "data":   admin.ToResponse(),
+    })
 }
 
 // Delete handles deleting an admin

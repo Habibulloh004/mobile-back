@@ -14,6 +14,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+func SetupPublicRoutes(api fiber.Router, bannerHandler *handlers.BannerHandler, notificationHandler *handlers.NotificationHandler) {
+	// Public routes group (no auth required)
+	publicRoutes := api.Group("/public")
+	
+	// Banner routes
+	publicRoutes.Get("/banners/admin/:adminID", bannerHandler.GetPublicByAdminID)
+	
+	// Notification routes
+	publicRoutes.Get("/notifications/admin/:adminID", notificationHandler.GetPublicByAdminID)
+}
+
 // SetupRoutes sets up all the routes for the application
 func SetupRoutes(app *fiber.App, db *pgxpool.Pool, cfg *config.Config) {
 	// Apply global middlewares
@@ -57,6 +68,7 @@ func SetupRoutes(app *fiber.App, db *pgxpool.Pool, cfg *config.Config) {
 	SetupNotificationRoutes(api, notificationHandler)
 	SetupFCMTokenRoutes(api, fcmTokenHandler)
 	SetupImageRoutes(app, api, imageHandler)
+	SetupPublicRoutes(api, bannerHandler, notificationHandler)
 
 	// Setup 404 handler
 	app.Use(func(c *fiber.Ctx) error {

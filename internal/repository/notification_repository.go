@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"mobilka/internal/models"
 	"mobilka/internal/utils"
@@ -155,26 +156,31 @@ func (r *NotificationRepository) GetAll(ctx context.Context) ([]*models.Notifica
 
 // Update updates a notification
 func (r *NotificationRepository) Update(ctx context.Context, id int, notification *models.Notification) error {
+	// Update all fields including admin_id
 	query := `
-		UPDATE notification
-		SET payload = $2, title = $3, body = $4
-		WHERE id = $1 AND admin_id = $5
-		RETURNING updated_at
-	`
+        UPDATE notification
+        SET admin_id = $2, payload = $3, title = $4, body = $5
+        WHERE id = $1
+        RETURNING updated_at
+    `
+
+	// Log the update query parameters for debugging
+	fmt.Printf("Repository: Updating notification %d with admin_id: %d, title: %s\n",
+		id, notification.AdminID, notification.Title)
 
 	err := r.db.QueryRow(ctx, query,
 		id,
+		notification.AdminID,
 		notification.Payload,
 		notification.Title,
 		notification.Body,
-		notification.AdminID,
 	).Scan(&notification.UpdatedAt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return utils.ErrResourceNotFound
 		}
-		return err
+		return fmt.Errorf("failed to update notification: %w", err)
 	}
 
 	return nil
@@ -195,4 +201,45 @@ func (r *NotificationRepository) Delete(ctx context.Context, id int, adminID int
 	}
 
 	return nil
+}
+
+// GetByAdminIDWithPagination retrieves notifications for a specific admin with pagination
+func (r *NotificationRepository) GetByAdminIDWithPagination(ctx context.Context, adminID, skip, step int) ([]*models.Notification, error) {
+	query := `
+		SELECT id, admin_id, payload, title, body, created_at, updated_at
+		FROM notification
+		WHERE admin_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+
+	rows, err := r.db.Query(ctx, query, adminID, step, skip)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notifications []*models.Notification
+	for rows.Next() {
+		var notification models.Notification
+		err := rows.Scan(
+			&notification.ID,
+			&notification.AdminID,
+			&notification.Payload,
+			&notification.Title,
+			&notification.Body,
+			&notification.CreatedAt,
+			&notification.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		notifications = append(notifications, &notification)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return notifications, nil
 }

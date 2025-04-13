@@ -17,6 +17,7 @@ type Notification struct {
 
 // NotificationCreateRequest represents the creation request for a notification
 type NotificationCreateRequest struct {
+	AdminID int    `json:"admin_id"`
 	Payload string `json:"payload" validate:"required"`
 	Title   string `json:"title" validate:"required"`
 	Body    string `json:"body" validate:"required"`
@@ -24,6 +25,7 @@ type NotificationCreateRequest struct {
 
 // NotificationUpdateRequest represents the update request for a notification
 type NotificationUpdateRequest struct {
+	AdminID int    `json:"admin_id"`
 	Payload string `json:"payload"`
 	Title   string `json:"title"`
 	Body    string `json:"body"`

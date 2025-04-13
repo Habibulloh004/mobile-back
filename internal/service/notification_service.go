@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"mobilka/internal/models"
 	"mobilka/internal/repository"
@@ -58,7 +59,7 @@ func (s *NotificationService) GetAll(ctx context.Context) ([]*models.Notificatio
 
 // Update updates a notification
 func (s *NotificationService) Update(ctx context.Context, id int, adminID int, req *models.NotificationUpdateRequest) (*models.Notification, error) {
-	// Get existing notification
+	// First get the current notification
 	notification, err := s.notificationRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -77,8 +78,11 @@ func (s *NotificationService) Update(ctx context.Context, id int, adminID int, r
 		notification.Body = req.Body
 	}
 
-	// Ensure the admin can only update their own notifications
+	// Update admin ID if specified (for super admin)
 	notification.AdminID = adminID
+
+	// Log update operation for debugging
+	fmt.Printf("Updating notification ID %d with admin ID %d\n", id, notification.AdminID)
 
 	// Update in database
 	err = s.notificationRepo.Update(ctx, id, notification)
@@ -92,4 +96,9 @@ func (s *NotificationService) Update(ctx context.Context, id int, adminID int, r
 // Delete deletes a notification
 func (s *NotificationService) Delete(ctx context.Context, id int, adminID int) error {
 	return s.notificationRepo.Delete(ctx, id, adminID)
+}
+
+// GetByAdminIDWithPagination retrieves notifications for a specific admin with pagination
+func (s *NotificationService) GetByAdminIDWithPagination(ctx context.Context, adminID, skip, step int) ([]*models.Notification, error) {
+	return s.notificationRepo.GetByAdminIDWithPagination(ctx, adminID, skip, step)
 }

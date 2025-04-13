@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"mobilka/internal/models"
 	"mobilka/internal/utils"
@@ -25,6 +26,9 @@ func NewBannerRepository(db *pgxpool.Pool) *BannerRepository {
 
 // Create creates a new banner
 func (r *BannerRepository) Create(ctx context.Context, banner *models.Banner) error {
+	// Log the banner object before saving (for debugging)
+	fmt.Printf("Repository: Creating banner with admin ID: %d\n", banner.AdminID)
+
 	query := `
 		INSERT INTO banner (admin_id, image, title, body)
 		VALUES ($1, $2, $3, $4)
@@ -32,7 +36,7 @@ func (r *BannerRepository) Create(ctx context.Context, banner *models.Banner) er
 	`
 
 	err := r.db.QueryRow(ctx, query,
-		banner.AdminID,
+		banner.AdminID, // Ensure this is being passed correctly
 		banner.Image,
 		banner.Title,
 		banner.Body,
@@ -42,7 +46,11 @@ func (r *BannerRepository) Create(ctx context.Context, banner *models.Banner) er
 		&banner.UpdatedAt,
 	)
 
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to create banner: %w", err)
+	}
+
+	return nil
 }
 
 // GetByID retrieves a banner by ID
@@ -155,26 +163,31 @@ func (r *BannerRepository) GetAll(ctx context.Context) ([]*models.Banner, error)
 
 // Update updates a banner
 func (r *BannerRepository) Update(ctx context.Context, id int, banner *models.Banner) error {
+	// Update all fields including admin_id
 	query := `
-		UPDATE banner
-		SET image = $2, title = $3, body = $4
-		WHERE id = $1 AND admin_id = $5
-		RETURNING updated_at
-	`
+        UPDATE banner
+        SET admin_id = $2, image = $3, title = $4, body = $5
+        WHERE id = $1
+        RETURNING updated_at
+    `
+
+	// Log the update query parameters for debugging
+	fmt.Printf("Repository: Updating banner %d with admin_id: %d, image: %s, title: %s\n",
+		id, banner.AdminID, banner.Image, banner.Title)
 
 	err := r.db.QueryRow(ctx, query,
 		id,
+		banner.AdminID,
 		banner.Image,
 		banner.Title,
 		banner.Body,
-		banner.AdminID,
 	).Scan(&banner.UpdatedAt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return utils.ErrResourceNotFound
 		}
-		return err
+		return fmt.Errorf("failed to update banner: %w", err)
 	}
 
 	return nil

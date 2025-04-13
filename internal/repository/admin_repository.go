@@ -7,7 +7,7 @@ import (
 
 	// "fmt"
 	"strings"
-	"time"
+	// "time"
 
 	"mobilka/internal/models"
 	"mobilka/internal/utils"
@@ -335,21 +335,26 @@ func (r *AdminRepository) GetByCredentials(ctx context.Context, userName, system
 	return &admin, nil
 }
 
+// Let's ensure the UpdateSystemToken and UpdateSmsToken methods in internal/repository/admin_repository.go are correctly implemented
+
 // UpdateSystemToken updates an admin's system token
 func (r *AdminRepository) UpdateSystemToken(ctx context.Context, id int, token string) error {
 	query := `
-		UPDATE admin
-		SET 
-			system_token = $2,
-			system_token_updated_time = $3
-		WHERE id = $1
-		RETURNING system_token_updated_time
-	`
+        UPDATE admin
+        SET 
+            system_token = $2,
+            system_token_updated_time = CURRENT_TIMESTAMP
+        WHERE id = $1
+    `
 
-	currentTime := time.Now()
-	err := r.db.QueryRow(ctx, query, id, token, currentTime).Scan(&currentTime)
+	result, err := r.db.Exec(ctx, query, id, token)
 	if err != nil {
 		return err
+	}
+
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		return utils.ErrUserNotFound
 	}
 
 	return nil
@@ -358,42 +363,43 @@ func (r *AdminRepository) UpdateSystemToken(ctx context.Context, id int, token s
 // UpdateSmsToken updates an admin's SMS token
 func (r *AdminRepository) UpdateSmsToken(ctx context.Context, id int, token string) error {
 	query := `
-		UPDATE admin
-		SET 
-			sms_token = $2,
-			sms_token_updated_time = $3
-		WHERE id = $1
-		RETURNING sms_token_updated_time
-	`
+        UPDATE admin
+        SET 
+            sms_token = $2,
+            sms_token_updated_time = CURRENT_TIMESTAMP
+        WHERE id = $1
+    `
 
-	currentTime := time.Now()
-	err := r.db.QueryRow(ctx, query, id, token, currentTime).Scan(&currentTime)
+	result, err := r.db.Exec(ctx, query, id, token)
 	if err != nil {
 		return err
+	}
+
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		return utils.ErrUserNotFound
 	}
 
 	return nil
 }
 
-// Update updates an admin
+// Update updates an admin - make sure it doesn't update token fields
 func (r *AdminRepository) Update(ctx context.Context, id int, admin *models.Admin) error {
 	query := `
-		UPDATE admin
-		SET 
-			user_name = $2,
-			email = $3,
-			company_name = $4,
-			system_id = $5,
-			system_token = $6,
-			sms_token = $7,
-			sms_email = $8,
-			sms_password = $9,
-			sms_message = $10,
-			payment_username = $11,
-			payment_password = $12
-		WHERE id = $1
-		RETURNING updated_at
-	`
+        UPDATE admin
+        SET 
+            user_name = $2,
+            email = $3,
+            company_name = $4,
+            system_id = $5,
+            sms_email = $6,
+            sms_password = $7,
+            sms_message = $8,
+            payment_username = $9,
+            payment_password = $10
+        WHERE id = $1
+        RETURNING updated_at
+    `
 
 	err := r.db.QueryRow(ctx, query,
 		id,
@@ -401,8 +407,6 @@ func (r *AdminRepository) Update(ctx context.Context, id int, admin *models.Admi
 		admin.Email,
 		admin.CompanyName,
 		admin.SystemID,
-		admin.SystemToken,
-		admin.SmsToken,
 		admin.SmsEmail,
 		admin.SmsPassword,
 		admin.SmsMessage,

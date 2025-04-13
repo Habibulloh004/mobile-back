@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"mobilka/internal/models"
 	"mobilka/internal/repository"
@@ -21,13 +22,18 @@ func NewBannerService(bannerRepo *repository.BannerRepository) *BannerService {
 
 // Create creates a new banner
 func (s *BannerService) Create(ctx context.Context, adminID int, req *models.BannerCreateRequest) (*models.Banner, error) {
+	// Create a new banner with the provided admin ID
 	banner := &models.Banner{
-		AdminID: adminID,
+		AdminID: adminID, // Ensure this is being set correctly
 		Image:   req.Image,
 		Title:   req.Title,
 		Body:    req.Body,
 	}
 
+	// Log the banner object before saving (for debugging)
+	fmt.Printf("Creating banner with admin ID: %d\n", banner.AdminID)
+
+	// Save the banner to the database
 	err := s.bannerRepo.Create(ctx, banner)
 	if err != nil {
 		return nil, err
@@ -53,7 +59,7 @@ func (s *BannerService) GetAll(ctx context.Context) ([]*models.Banner, error) {
 
 // Update updates a banner
 func (s *BannerService) Update(ctx context.Context, id int, adminID int, req *models.BannerUpdateRequest) (*models.Banner, error) {
-	// Get existing banner
+	// First get the current banner
 	banner, err := s.bannerRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -72,8 +78,11 @@ func (s *BannerService) Update(ctx context.Context, id int, adminID int, req *mo
 		banner.Body = req.Body
 	}
 
-	// Ensure the admin can only update their own banners
+	// Update admin ID if specified (for super admin)
 	banner.AdminID = adminID
+
+	// Log update operation for debugging
+	fmt.Printf("Updating banner ID %d with admin ID %d\n", id, banner.AdminID)
 
 	// Update in database
 	err = s.bannerRepo.Update(ctx, id, banner)

@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+
 	// "errors"
 	// "fmt"
 	"time"
@@ -97,6 +99,10 @@ func (s *AdminService) Update(ctx context.Context, id int, req *models.AdminUpda
 		return nil, err
 	}
 
+	// Add debug logging
+	fmt.Printf("Updating admin ID %d\n", id)
+	fmt.Printf("Request data: %+v\n", req)
+
 	// Update fields if provided
 	if req.UserName != "" {
 		admin.UserName = req.UserName
@@ -114,16 +120,52 @@ func (s *AdminService) Update(ctx context.Context, id int, req *models.AdminUpda
 		admin.SystemID = req.SystemID
 	}
 
-	// Update system token if provided
+	// Special handling for token fields with timestamps
+	tokenUpdated := false
+
+	// Check if system_token is provided
 	if req.SystemToken != "" {
+		fmt.Printf("Updating system_token to: %s\n", req.SystemToken)
+
+		// Update the system token
+		err = s.adminRepo.UpdateSystemToken(ctx, id, req.SystemToken)
+		if err != nil {
+			fmt.Printf("Error updating system_token: %v\n", err)
+			return nil, err
+		}
+
 		admin.SystemToken = req.SystemToken
-		admin.SystemTokenUpdatedTime = time.Now()
+		tokenUpdated = true
+		fmt.Println("System token updated successfully")
 	}
 
-	// Update SMS token if provided
+	// Check if sms_token is provided
 	if req.SmsToken != "" {
+		fmt.Printf("Updating sms_token to: %s\n", req.SmsToken)
+
+		// Update the SMS token
+		err = s.adminRepo.UpdateSmsToken(ctx, id, req.SmsToken)
+		if err != nil {
+			fmt.Printf("Error updating sms_token: %v\n", err)
+			return nil, err
+		}
+
 		admin.SmsToken = req.SmsToken
-		admin.SmsTokenUpdatedTime = time.Now()
+		tokenUpdated = true
+		fmt.Println("SMS token updated successfully")
+	}
+
+	// If any token was updated, refresh admin data to get updated timestamps
+	if tokenUpdated {
+		fmt.Println("Refreshing admin data to get updated timestamps")
+		updatedAdmin, err := s.adminRepo.GetByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		admin.SystemTokenUpdatedTime = updatedAdmin.SystemTokenUpdatedTime
+		admin.SmsTokenUpdatedTime = updatedAdmin.SmsTokenUpdatedTime
+		fmt.Printf("Updated timestamps - SystemToken: %v, SmsToken: %v\n",
+			admin.SystemTokenUpdatedTime, admin.SmsTokenUpdatedTime)
 	}
 
 	if req.SmsEmail != "" {
@@ -154,12 +196,20 @@ func (s *AdminService) Update(ctx context.Context, id int, req *models.AdminUpda
 		admin.PaymentPassword = paymentPasswordHash
 	}
 
-	// Update in database
-	err = s.adminRepo.Update(ctx, id, admin)
-	if err != nil {
-		return nil, err
+	// Update in database for non-token fields
+	if req.UserName != "" || req.Email != "" || req.CompanyName != "" ||
+		req.SystemID != "" || req.SmsEmail != "" || req.SmsPassword != "" ||
+		req.SmsMessage != "" || req.PaymentUsername != "" || req.PaymentPassword != "" {
+
+		fmt.Println("Updating non-token fields")
+		err = s.adminRepo.Update(ctx, id, admin)
+		if err != nil {
+			fmt.Printf("Error updating non-token fields: %v\n", err)
+			return nil, err
+		}
 	}
 
+	fmt.Println("Admin update completed successfully")
 	return admin, nil
 }
 

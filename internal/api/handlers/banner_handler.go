@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"strconv"
 
 	"mobilka/internal/models"
@@ -71,54 +72,87 @@ func (h *BannerHandler) GetByID(c *fiber.Ctx) error {
 
 // Update handles updating a banner
 func (h *BannerHandler) Update(c *fiber.Ctx) error {
-	// Get banner ID from URL
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  utils.StatusError,
-			"message": "Invalid banner ID",
-		})
-	}
+    // Get banner ID from URL
+    id, err := strconv.Atoi(c.Params("id"))
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "status":  utils.StatusError,
+            "message": "Invalid banner ID",
+        })
+    }
 
-	// Get admin ID from context
-	adminID, ok := c.Locals(utils.ContextUserID).(int)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status":  utils.StatusError,
-			"message": "Unauthorized",
-		})
-	}
+    // Get admin ID from context
+    adminID, ok := c.Locals(utils.ContextUserID).(int)
+    if !ok {
+        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+            "status":  utils.StatusError,
+            "message": "Unauthorized",
+        })
+    }
 
-	var req models.BannerUpdateRequest
+    // Get role from context
+    role, _ := c.Locals(utils.ContextUserRole).(string)
 
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  utils.StatusError,
-			"message": "Invalid request body",
-		})
-	}
+    var req models.BannerUpdateRequest
+    if err := c.BodyParser(&req); err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "status":  utils.StatusError,
+            "message": "Invalid request body",
+        })
+    }
 
-	// Update banner
-	banner, err := h.bannerService.Update(c.Context(), id, adminID, &req)
-	if err != nil {
-		if err == utils.ErrResourceNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status":  utils.StatusError,
-				"message": "Banner not found or access denied",
-			})
-		}
+    // First, get the existing banner to check ownership
+    existingBanner, err := h.bannerService.GetByID(c.Context(), id)
+    if err != nil {
+        if err == utils.ErrResourceNotFound {
+            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+                "status":  utils.StatusError,
+                "message": "Banner not found",
+            })
+        }
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "status":  utils.StatusError,
+            "message": "Failed to retrieve banner",
+        })
+    }
 
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  utils.StatusError,
-			"message": "Failed to update banner",
-		})
-	}
+    // Check if user has permission to update this banner
+    // Super admins can update any banner
+    // Regular admins can only update their own banners
+    if role != utils.RoleSuperAdmin && existingBanner.AdminID != adminID {
+        return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+            "status":  utils.StatusError,
+            "message": "You don't have permission to update this banner",
+        })
+    }
 
-	// Return response
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": utils.StatusSuccess,
-		"data":   banner.ToResponse(),
-	})
+    // Allow changing adminID only for super admins
+    targetAdminID := existingBanner.AdminID
+    if req.AdminID > 0 && role == utils.RoleSuperAdmin {
+        targetAdminID = req.AdminID
+        fmt.Printf("Super admin changing banner admin ID from %d to %d\n", existingBanner.AdminID, targetAdminID)
+    }
+
+    // Update banner
+    banner, err := h.bannerService.Update(c.Context(), id, targetAdminID, &req)
+    if err != nil {
+        if err == utils.ErrResourceNotFound {
+            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+                "status":  utils.StatusError,
+                "message": "Banner not found or access denied",
+            })
+        }
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "status":  utils.StatusError,
+            "message": "Failed to update banner",
+        })
+    }
+
+    // Return response
+    return c.Status(fiber.StatusOK).JSON(fiber.Map{
+        "status": utils.StatusSuccess,
+        "data":   banner.ToResponse(),
+    })
 }
 
 // Delete handles deleting a banner
@@ -171,10 +205,11 @@ func NewBannerHandler(bannerService *service.BannerService) *BannerHandler {
 	}
 }
 
+
 // Create handles creating a new banner
 func (h *BannerHandler) Create(c *fiber.Ctx) error {
 	// Get admin ID from context
-	adminID, ok := c.Locals(utils.ContextUserID).(int)
+	contextAdminID, ok := c.Locals(utils.ContextUserID).(int)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":  utils.StatusError,
@@ -182,13 +217,50 @@ func (h *BannerHandler) Create(c *fiber.Ctx) error {
 		})
 	}
 
+	// Get role from context
+	role, _ := c.Locals(utils.ContextUserRole).(string)
+	
 	var req models.BannerCreateRequest
-
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  utils.StatusError,
 			"message": "Invalid request body",
 		})
+	}
+
+	// Validate required fields
+	if req.Image == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Image is required",
+		})
+	}
+
+	if req.Title == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Title is required",
+		})
+	}
+
+	if req.Body == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Body is required",
+		})
+	}
+
+	// Determine which admin ID to use
+	adminID := contextAdminID
+	
+	// For banner creation, we need to update the model to support admin_id in the request
+	// Add the AdminID field to BannerCreateRequest in internal/models/banner.go
+	if req.AdminID > 0 && role == utils.RoleSuperAdmin {
+		// Only super admins can create banners for other admins
+		adminID = req.AdminID
+		fmt.Printf("Super admin creating banner for admin ID: %d\n", adminID)
+	} else {
+		fmt.Printf("Regular admin creating banner with own ID: %d\n", adminID)
 	}
 
 	// Create banner
@@ -231,6 +303,40 @@ func (h *BannerHandler) GetAll(c *fiber.Ctx) error {
 		banners, err = h.bannerService.GetByAdminID(c.Context(), adminID)
 	}
 
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Failed to retrieve banners",
+		})
+	}
+
+	// Convert to response objects
+	var responses []models.BannerResponse
+	for _, banner := range banners {
+		responses = append(responses, banner.ToResponse())
+	}
+
+	// Return response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": utils.StatusSuccess,
+		"data":   responses,
+	})
+}
+
+// GetPublicByAdminID handles retrieving all banners for a specific admin without authentication
+
+func (h *BannerHandler) GetPublicByAdminID(c *fiber.Ctx) error {
+	// Get admin ID from URL
+	adminID, err := strconv.Atoi(c.Params("adminID"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Invalid admin ID",
+		})
+	}
+
+	// Get banners
+	banners, err := h.bannerService.GetByAdminID(c.Context(), adminID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  utils.StatusError,
