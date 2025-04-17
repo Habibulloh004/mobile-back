@@ -311,3 +311,36 @@ func (h *AdminHandler) GetByIDPublic(c *fiber.Ctx) error {
 		"data":   admin.ToResponse(),
 	})
 }
+
+func (h *AdminHandler) GetByIDPublicMobile(c *fiber.Ctx) error {
+	// Get admin ID from URL
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Invalid admin ID",
+		})
+	}
+
+	// Get admin and increment users count
+	admin, err := h.adminService.GetByID(c.Context(), id)
+	if err != nil {
+		if err == utils.ErrUserNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"status":  utils.StatusError,
+				"message": "Admin not found",
+			})
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Failed to retrieve profile",
+		})
+	}
+
+	// Return response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": utils.StatusSuccess,
+		"data":   admin.ToResponse(),
+	})
+}
