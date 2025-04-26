@@ -9,6 +9,7 @@ import (
 
 // SetupBannerRoutes sets up all routes related to banner operations
 func SetupBannerRoutes(api fiber.Router, bannerHandler *handlers.BannerHandler) {
+	api.Get("/public/mobilebanner/:id", bannerHandler.GetByIDPublicMobile)
 	// Banner routes
 	bannerRoutes := api.Group("/banners")
 	bannerRoutes.Use(middlewares.Protected())

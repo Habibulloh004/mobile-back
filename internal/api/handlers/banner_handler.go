@@ -241,8 +241,8 @@ func (h *BannerHandler) Create(c *fiber.Ctx) error {
 			"status":  utils.StatusError,
 			"message": "Title is required",
 		})
-	}
-
+	} 
+	
 	if req.Body == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  utils.StatusError,
@@ -302,6 +302,37 @@ func (h *BannerHandler) GetAll(c *fiber.Ctx) error {
 	} else {
 		banners, err = h.bannerService.GetByAdminID(c.Context(), adminID)
 	}
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Failed to retrieve banners",
+		})
+	}
+
+	// Convert to response objects
+	var responses []models.BannerResponse
+	for _, banner := range banners {
+		responses = append(responses, banner.ToResponse())
+	}
+
+	// Return response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": utils.StatusSuccess,
+		"data":   responses,
+	})
+}
+
+func (h *BannerHandler) GetByIDPublicMobile(c *fiber.Ctx) error {
+	// Get admin ID from context
+	adminID, _ := strconv.Atoi(c.Params("id"))
+	fmt.Print(adminID)
+
+
+	var banners []*models.Banner
+	var err error
+
+	banners, err = h.bannerService.GetByAdminID(c.Context(), adminID)
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
