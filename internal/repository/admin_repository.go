@@ -76,9 +76,9 @@ func (r *AdminRepository) Create(ctx context.Context, admin *models.Admin) error
         INSERT INTO admin (
             user_name, email, company_name, system_id, system_token, 
             system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-            sms_password, sms_message, payment_username, payment_password
+            sms_password, sms_message, payment_username, payment_password, delivery
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
         ) RETURNING id, created_at, updated_at
     `
 
@@ -96,6 +96,7 @@ func (r *AdminRepository) Create(ctx context.Context, admin *models.Admin) error
 		admin.SmsMessage,
 		admin.PaymentUsername,
 		admin.PaymentPassword,
+		admin.Delivery,
 	).Scan(
 		&admin.ID,
 		&admin.CreatedAt,
@@ -116,7 +117,7 @@ func (r *AdminRepository) GetByID(ctx context.Context, id int) (*models.Admin, e
 		SELECT 
 			id, user_name, email, company_name, system_id, system_token, 
 			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, 
+			sms_password, sms_message, payment_username, payment_password, delivery,
 			users, created_at, updated_at
 		FROM admin
 		WHERE id = $1
@@ -138,6 +139,7 @@ func (r *AdminRepository) GetByID(ctx context.Context, id int) (*models.Admin, e
 		&admin.SmsMessage,
 		&admin.PaymentUsername,
 		&admin.PaymentPassword,
+		&admin.Delivery,
 		&admin.Users,
 		&admin.CreatedAt,
 		&admin.UpdatedAt,
@@ -159,7 +161,7 @@ func (r *AdminRepository) GetAll(ctx context.Context) ([]*models.Admin, error) {
 		SELECT 
 			id, user_name, email, company_name, system_id, system_token, 
 			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, 
+			sms_password, sms_message, payment_username, payment_password, delivery,
 			users, created_at, updated_at
 		FROM admin
 		ORDER BY id
@@ -189,6 +191,7 @@ func (r *AdminRepository) GetAll(ctx context.Context) ([]*models.Admin, error) {
 			&admin.SmsMessage,
 			&admin.PaymentUsername,
 			&admin.PaymentPassword,
+			&admin.Delivery,
 			&admin.Users,
 			&admin.CreatedAt,
 			&admin.UpdatedAt,
@@ -212,7 +215,7 @@ func (r *AdminRepository) GetByEmail(ctx context.Context, email string) (*models
 		SELECT 
 			id, user_name, email, company_name, system_id, system_token, 
 			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, 
+			sms_password, sms_message, payment_username, payment_password, delivery,
 			users, created_at, updated_at
 		FROM admin
 		WHERE email = $1
@@ -234,6 +237,7 @@ func (r *AdminRepository) GetByEmail(ctx context.Context, email string) (*models
 		&admin.SmsMessage,
 		&admin.PaymentUsername,
 		&admin.PaymentPassword,
+		&admin.Delivery,
 		&admin.Users,
 		&admin.CreatedAt,
 		&admin.UpdatedAt,
@@ -255,7 +259,7 @@ func (r *AdminRepository) GetByUserNameAndSystemID(ctx context.Context, userName
 		SELECT 
 			id, user_name, email, company_name, system_id, system_token, 
 			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, 
+			sms_password, sms_message, payment_username, payment_password, delivery,
 			users, created_at, updated_at
 		FROM admin
 		WHERE user_name = $1 AND system_id = $2
@@ -277,6 +281,7 @@ func (r *AdminRepository) GetByUserNameAndSystemID(ctx context.Context, userName
 		&admin.SmsMessage,
 		&admin.PaymentUsername,
 		&admin.PaymentPassword,
+		&admin.Delivery,
 		&admin.Users,
 		&admin.CreatedAt,
 		&admin.UpdatedAt,
@@ -298,7 +303,7 @@ func (r *AdminRepository) GetByCredentials(ctx context.Context, userName, system
 		SELECT 
 			id, user_name, email, company_name, system_id, system_token, 
 			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, 
+			sms_password, sms_message, payment_username, payment_password, delivery,
 			users, created_at, updated_at
 		FROM admin
 		WHERE user_name = $1 AND system_id = $2 AND email = $3
@@ -320,6 +325,7 @@ func (r *AdminRepository) GetByCredentials(ctx context.Context, userName, system
 		&admin.SmsMessage,
 		&admin.PaymentUsername,
 		&admin.PaymentPassword,
+		&admin.Delivery,
 		&admin.Users,
 		&admin.CreatedAt,
 		&admin.UpdatedAt,
@@ -383,7 +389,7 @@ func (r *AdminRepository) UpdateSmsToken(ctx context.Context, id int, token stri
 	return nil
 }
 
-// Update updates an admin - make sure it doesn't update token fields
+// Update updates an admin - including delivery field
 func (r *AdminRepository) Update(ctx context.Context, id int, admin *models.Admin) error {
 	query := `
         UPDATE admin
@@ -396,7 +402,8 @@ func (r *AdminRepository) Update(ctx context.Context, id int, admin *models.Admi
             sms_password = $7,
             sms_message = $8,
             payment_username = $9,
-            payment_password = $10
+            payment_password = $10,
+            delivery = $11
         WHERE id = $1
         RETURNING updated_at
     `
@@ -412,6 +419,7 @@ func (r *AdminRepository) Update(ctx context.Context, id int, admin *models.Admi
 		admin.SmsMessage,
 		admin.PaymentUsername,
 		admin.PaymentPassword,
+		admin.Delivery,
 	).Scan(&admin.UpdatedAt)
 
 	if err != nil {

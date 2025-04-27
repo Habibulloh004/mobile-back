@@ -184,45 +184,101 @@ func (h *AdminHandler) GetProfile(c *fiber.Ctx) error {
 
 // Update handles updating an admin
 func (h *AdminHandler) Update(c *fiber.Ctx) error {
-    // Get admin ID from URL
-    id, err := strconv.Atoi(c.Params("id"))
-    if err != nil {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// Get admin ID from URL
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Invalid admin ID",
+		})
+	}
+
+	// Log the raw request body for debugging
+	rawBody := c.Body()
+	fmt.Printf("Raw request body for admin ID %d update: %s\n", id, string(rawBody))
+
+	var req models.AdminUpdateRequest
+	if err := c.BodyParser(&req); err != nil {
+		fmt.Printf("Error parsing request body: %v\n", err)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Invalid request body: " + err.Error(),
+		})
+	}
+
+	// Log parsed request for debugging
+	fmt.Printf("Parsed request for admin ID %d update: %+v\n", id, req)
+
+	// Check if system_token is in the request (even if parsing didn't set it)
+	var requestMap map[string]interface{}
+	if err := json.Unmarshal(rawBody, &requestMap); err == nil {
+		if systemToken, exists := requestMap["system_token"]; exists {
+			fmt.Printf("Found system_token in raw map: %v\n", systemToken)
+			if req.SystemToken == "" {
+				req.SystemToken = fmt.Sprintf("%v", systemToken)
+				fmt.Printf("Setting req.SystemToken to: %s\n", req.SystemToken)
+			}
+		}
+
+		// Also check if delivery is present in the raw map
+		if delivery, exists := requestMap["delivery"]; exists {
+			fmt.Printf("Found delivery in raw map: %v\n", delivery)
+			// Convert to int if it's a number
+			if deliveryFloat, ok := delivery.(float64); ok {
+				req.Delivery = int(deliveryFloat)
+				fmt.Printf("Setting req.Delivery to: %d\n", req.Delivery)
+			}
+		}
+	}
+
+	// Update admin
+	admin, err := h.adminService.Update(c.Context(), id, &req)
+	if err != nil {
+		if err == utils.ErrUserNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"status":  utils.StatusError,
+				"message": "Admin not found",
+			})
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Failed to update admin: " + err.Error(),
+		})
+	}
+
+	// Return response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": utils.StatusSuccess,
+		"data":   admin.ToResponse(),
+	})
+}
+
+// ChangeDelivery handles updating an admin's delivery status
+func (h *AdminHandler) ChangeDelivery(c *fiber.Ctx) error {
+    // Get admin ID from context
+    adminID, ok := c.Locals(utils.ContextUserID).(int)
+    if !ok {
+        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
             "status":  utils.StatusError,
-            "message": "Invalid admin ID",
+            "message": "Unauthorized",
         })
     }
 
-    // Log the raw request body for debugging
-    rawBody := c.Body()
-    fmt.Printf("Raw request body for admin ID %d update: %s\n", id, string(rawBody))
+    // Parse request body
+    var req struct {
+        Delivery int `json:"delivery"`
+    }
 
-    var req models.AdminUpdateRequest
     if err := c.BodyParser(&req); err != nil {
-        fmt.Printf("Error parsing request body: %v\n", err)
         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
             "status":  utils.StatusError,
-            "message": "Invalid request body: " + err.Error(),
+            "message": "Invalid request body",
         })
     }
 
-    // Log parsed request for debugging
-    fmt.Printf("Parsed request for admin ID %d update: %+v\n", id, req)
-
-    // Check if system_token is in the request (even if parsing didn't set it)
-    var requestMap map[string]interface{}
-    if err := json.Unmarshal(rawBody, &requestMap); err == nil {
-        if systemToken, exists := requestMap["system_token"]; exists {
-            fmt.Printf("Found system_token in raw map: %v\n", systemToken)
-            if req.SystemToken == "" {
-                req.SystemToken = fmt.Sprintf("%v", systemToken)
-                fmt.Printf("Setting req.SystemToken to: %s\n", req.SystemToken)
-            }
-        }
-    }
-
-    // Update admin
-    admin, err := h.adminService.Update(c.Context(), id, &req)
+    // Get the admin to update
+    admin, err := h.adminService.GetByID(c.Context(), adminID)
     if err != nil {
         if err == utils.ErrUserNotFound {
             return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -230,17 +286,34 @@ func (h *AdminHandler) Update(c *fiber.Ctx) error {
                 "message": "Admin not found",
             })
         }
-
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
             "status":  utils.StatusError,
-            "message": "Failed to update admin: " + err.Error(),
+            "message": "Failed to retrieve admin",
+        })
+    }
+
+    // Update admin's delivery status
+    admin.Delivery = req.Delivery
+
+    // Create an update request with just the delivery field
+    updateReq := &models.AdminUpdateRequest{
+        Delivery: req.Delivery,
+    }
+
+    // Update admin
+    updatedAdmin, err := h.adminService.Update(c.Context(), adminID, updateReq)
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "status":  utils.StatusError,
+            "message": "Failed to update delivery status: " + err.Error(),
         })
     }
 
     // Return response
     return c.Status(fiber.StatusOK).JSON(fiber.Map{
         "status": utils.StatusSuccess,
-        "data":   admin.ToResponse(),
+        "data":   updatedAdmin.ToResponse(),
+        "message": "Delivery status updated successfully",
     })
 }
 

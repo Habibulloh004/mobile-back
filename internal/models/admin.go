@@ -20,6 +20,7 @@ type Admin struct {
 	SmsMessage             string     `json:"sms_message"`
 	PaymentUsername        string     `json:"payment_username"`
 	PaymentPassword        string     `json:"payment_password"` // Password is not exposed in JSON responses
+	Delivery               int        `json:"delivery"`
 	Users                  int        `json:"users"`
 	SubscriptionTierID     *int       `json:"subscription_tier_id"`
 	SubscriptionStatus     string     `json:"subscription_status"`
@@ -35,6 +36,7 @@ type AdminCreateRequest struct {
 	UserName           string `json:"user_name" validate:"required"`
 	Email              string `json:"email" validate:"required,email"`
 	CompanyName        string `json:"company_name" validate:"required"`
+	Delivery           int    `json:"delivery"`
 	SystemID           string `json:"system_id"`
 	SystemToken        string `json:"system_token"`
 	SmsToken           string `json:"sms_token"`
@@ -50,6 +52,7 @@ type AdminCreateRequest struct {
 type AdminUpdateRequest struct {
 	UserName           string `json:"user_name"`
 	Email              string `json:"email" validate:"omitempty,email"`
+	Delivery           int    `json:"delivery"`
 	CompanyName        string `json:"company_name"`
 	SystemID           string `json:"system_id"`
 	SystemToken        string `json:"system_token"`
@@ -76,6 +79,7 @@ type AdminResponse struct {
 	UserName               string     `json:"user_name"`
 	Email                  string     `json:"email"`
 	CompanyName            string     `json:"company_name"`
+	Delivery               int        `json:"delivery"`
 	SystemID               string     `json:"system_id"`
 	SystemToken            string     `json:"system_token"`
 	SystemTokenUpdatedTime time.Time  `json:"system_token_updated_time"`
@@ -106,6 +110,7 @@ func (a *Admin) ToResponse() AdminResponse {
 		CompanyName:            a.CompanyName,
 		SystemID:               a.SystemID,
 		SystemToken:            a.SystemToken,
+		Delivery:               a.Delivery,
 		SystemTokenUpdatedTime: a.SystemTokenUpdatedTime,
 		SmsToken:               a.SmsToken,
 		SmsEmail:               a.SmsEmail,

@@ -55,6 +55,7 @@ func (s *AdminService) Create(ctx context.Context, req *models.AdminCreateReques
 		UserName:               req.UserName,
 		Email:                  req.Email,
 		CompanyName:            req.CompanyName,
+		Delivery:               req.Delivery,
 		SystemID:               req.SystemID,
 		SystemToken:            req.SystemToken,
 		SystemTokenUpdatedTime: time.Now(),
@@ -115,6 +116,10 @@ func (s *AdminService) Update(ctx context.Context, id int, req *models.AdminUpda
 	if req.CompanyName != "" {
 		admin.CompanyName = req.CompanyName
 	}
+
+	// Handle delivery field update (zero value is valid)
+	admin.Delivery = req.Delivery
+	fmt.Printf("Setting delivery to: %d\n", req.Delivery)
 
 	if req.SystemID != "" {
 		admin.SystemID = req.SystemID
@@ -197,16 +202,11 @@ func (s *AdminService) Update(ctx context.Context, id int, req *models.AdminUpda
 	}
 
 	// Update in database for non-token fields
-	if req.UserName != "" || req.Email != "" || req.CompanyName != "" ||
-		req.SystemID != "" || req.SmsEmail != "" || req.SmsPassword != "" ||
-		req.SmsMessage != "" || req.PaymentUsername != "" || req.PaymentPassword != "" {
-
-		fmt.Println("Updating non-token fields")
-		err = s.adminRepo.Update(ctx, id, admin)
-		if err != nil {
-			fmt.Printf("Error updating non-token fields: %v\n", err)
-			return nil, err
-		}
+	fmt.Println("Updating non-token fields including delivery")
+	err = s.adminRepo.Update(ctx, id, admin)
+	if err != nil {
+		fmt.Printf("Error updating non-token fields: %v\n", err)
+		return nil, err
 	}
 
 	fmt.Println("Admin update completed successfully")

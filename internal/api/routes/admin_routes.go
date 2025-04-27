@@ -25,4 +25,5 @@ func SetupAdminRoutes(api fiber.Router, adminHandler *handlers.AdminHandler) {
 	adminProfileRoutes := api.Group("/admin")
 	adminProfileRoutes.Use(middlewares.Protected(), middlewares.AdminOnly())
 	adminProfileRoutes.Get("/profile", adminHandler.GetProfile)
+	adminProfileRoutes.Put("/change-delivery", adminHandler.ChangeDelivery)
 }
