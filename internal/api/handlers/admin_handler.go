@@ -24,7 +24,7 @@ func NewAdminHandler(adminService *service.AdminService) *AdminHandler {
 	}
 }
 
-// Create handles creating a new admin
+// Create handles creating a new admin - with optional bot fields
 func (h *AdminHandler) Create(c *fiber.Ctx) error {
 	var req models.AdminCreateRequest
 
@@ -63,6 +63,9 @@ func (h *AdminHandler) Create(c *fiber.Ctx) error {
 			"message": "System id is required",
 		})
 	}
+
+	// Bot token and bot chat ID validation is now optional
+	// to handle both old and updated database schema versions
 
 	// Create admin
 	admin, err := h.adminService.Create(c.Context(), &req)

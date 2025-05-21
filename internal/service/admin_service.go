@@ -66,6 +66,8 @@ func (s *AdminService) Create(ctx context.Context, req *models.AdminCreateReques
 		SmsMessage:             req.SmsMessage,
 		PaymentUsername:        req.PaymentUsername,
 		PaymentPassword:        paymentPasswordHash,
+		BotToken:               req.BotToken,
+		BotChatId:              req.BotChatId,
 	}
 
 	// Save to database
@@ -199,6 +201,14 @@ func (s *AdminService) Update(ctx context.Context, id int, req *models.AdminUpda
 			return nil, err
 		}
 		admin.PaymentPassword = paymentPasswordHash
+	}
+
+	if req.BotToken != "" {
+		admin.BotToken = req.BotToken
+	}
+
+	if req.BotChatId != "" {
+		admin.BotChatId = req.BotChatId
 	}
 
 	// Update in database for non-token fields

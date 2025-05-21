@@ -28,7 +28,7 @@ func NewAdminRepository(db *pgxpool.Pool) *AdminRepository {
 	}
 }
 
-// Create creates a new admin
+// Create function with optional bot fields
 func (r *AdminRepository) Create(ctx context.Context, admin *models.Admin) error {
 	// Start a transaction to control ID sequence
 	tx, err := r.db.Begin(ctx)
@@ -71,33 +71,82 @@ func (r *AdminRepository) Create(ctx context.Context, admin *models.Admin) error
 			"Admin with this username already exists", 409)
 	}
 
-	// Now insert the new admin
-	query := `
-        INSERT INTO admin (
-            user_name, email, company_name, system_id, system_token, 
-            system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-            sms_password, sms_message, payment_username, payment_password, delivery
-        ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
-        ) RETURNING id, created_at, updated_at
-    `
+	// Check if the bot_token and bot_chat_id columns exist
+	var columnExists bool
+	err = tx.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 
+			FROM information_schema.columns 
+			WHERE table_name='admin' AND column_name='bot_token'
+		)
+	`).Scan(&columnExists)
 
-	err = tx.QueryRow(ctx, query,
-		admin.UserName,
-		admin.Email,
-		admin.CompanyName,
-		admin.SystemID,
-		admin.SystemToken,
-		admin.SystemTokenUpdatedTime,
-		admin.SmsToken,
-		admin.SmsTokenUpdatedTime,
-		admin.SmsEmail,
-		admin.SmsPassword,
-		admin.SmsMessage,
-		admin.PaymentUsername,
-		admin.PaymentPassword,
-		admin.Delivery,
-	).Scan(
+	if err != nil {
+		return err
+	}
+
+	var query string
+	var args []interface{}
+
+	if columnExists {
+		// Use query with bot fields
+		query = `
+			INSERT INTO admin (
+				user_name, email, company_name, system_id, system_token, 
+				system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
+				sms_password, sms_message, payment_username, payment_password, delivery, bot_token, bot_chat_id
+			) VALUES (
+				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+			) RETURNING id, created_at, updated_at
+		`
+		args = []interface{}{
+			admin.UserName,
+			admin.Email,
+			admin.CompanyName,
+			admin.SystemID,
+			admin.SystemToken,
+			admin.SystemTokenUpdatedTime,
+			admin.SmsToken,
+			admin.SmsTokenUpdatedTime,
+			admin.SmsEmail,
+			admin.SmsPassword,
+			admin.SmsMessage,
+			admin.PaymentUsername,
+			admin.PaymentPassword,
+			admin.Delivery,
+			admin.BotToken,
+			admin.BotChatId,
+		}
+	} else {
+		// Use query without bot fields
+		query = `
+			INSERT INTO admin (
+				user_name, email, company_name, system_id, system_token, 
+				system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
+				sms_password, sms_message, payment_username, payment_password, delivery
+			) VALUES (
+				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+			) RETURNING id, created_at, updated_at
+		`
+		args = []interface{}{
+			admin.UserName,
+			admin.Email,
+			admin.CompanyName,
+			admin.SystemID,
+			admin.SystemToken,
+			admin.SystemTokenUpdatedTime,
+			admin.SmsToken,
+			admin.SmsTokenUpdatedTime,
+			admin.SmsEmail,
+			admin.SmsPassword,
+			admin.SmsMessage,
+			admin.PaymentUsername,
+			admin.PaymentPassword,
+			admin.Delivery,
+		}
+	}
+
+	err = tx.QueryRow(ctx, query, args...).Scan(
 		&admin.ID,
 		&admin.CreatedAt,
 		&admin.UpdatedAt,
@@ -111,13 +160,125 @@ func (r *AdminRepository) Create(ctx context.Context, admin *models.Admin) error
 	return tx.Commit(ctx)
 }
 
+// Update function with optional bot fields
+func (r *AdminRepository) Update(ctx context.Context, id int, admin *models.Admin) error {
+	// First check if bot columns exist
+	var botColumnsExist bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 
+			FROM information_schema.columns 
+			WHERE table_name='admin' AND column_name='bot_token'
+		)
+	`).Scan(&botColumnsExist)
+
+	if err != nil {
+		return err
+	}
+
+	var query string
+	var args []interface{}
+
+	if botColumnsExist {
+		// Query with bot fields
+		query = `
+			UPDATE admin
+			SET 
+				user_name = $2,
+				email = $3,
+				company_name = $4,
+				system_id = $5,
+				sms_email = $6,
+				sms_password = $7,
+				sms_message = $8,
+				payment_username = $9,
+				payment_password = $10,
+				delivery = $11,
+				bot_token = $12,
+				bot_chat_id = $13
+			WHERE id = $1
+			RETURNING updated_at
+		`
+		args = []interface{}{
+			id,
+			admin.UserName,
+			admin.Email,
+			admin.CompanyName,
+			admin.SystemID,
+			admin.SmsEmail,
+			admin.SmsPassword,
+			admin.SmsMessage,
+			admin.PaymentUsername,
+			admin.PaymentPassword,
+			admin.Delivery,
+			admin.BotToken,
+			admin.BotChatId,
+		}
+	} else {
+		// Query without bot fields
+		query = `
+			UPDATE admin
+			SET 
+				user_name = $2,
+				email = $3,
+				company_name = $4,
+				system_id = $5,
+				sms_email = $6,
+				sms_password = $7,
+				sms_message = $8,
+				payment_username = $9,
+				payment_password = $10,
+				delivery = $11
+			WHERE id = $1
+			RETURNING updated_at
+		`
+		args = []interface{}{
+			id,
+			admin.UserName,
+			admin.Email,
+			admin.CompanyName,
+			admin.SystemID,
+			admin.SmsEmail,
+			admin.SmsPassword,
+			admin.SmsMessage,
+			admin.PaymentUsername,
+			admin.PaymentPassword,
+			admin.Delivery,
+		}
+	}
+
+	err = r.db.QueryRow(ctx, query, args...).Scan(&admin.UpdatedAt)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return utils.ErrUserNotFound
+		}
+
+		// Check for unique constraint violations
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23505" { // unique_violation
+				if strings.Contains(pgErr.Message, "admin_email_unique") {
+					return utils.NewAppError(utils.ErrResourceAlreadyExists, "Email already exists", 409)
+				} else if strings.Contains(pgErr.Message, "admin_username_systemid_unique") {
+					return utils.NewAppError(utils.ErrResourceAlreadyExists, "Username and system ID combination already exists", 409)
+				}
+			}
+		}
+
+		return err
+	}
+
+	return nil
+}
+
 // GetByID retrieves an admin by ID
 func (r *AdminRepository) GetByID(ctx context.Context, id int) (*models.Admin, error) {
 	query := `
 		SELECT 
 			id, user_name, email, company_name, system_id, system_token, 
 			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, delivery,
+			sms_password, sms_message, payment_username, payment_password, delivery, bot_token, bot_chat_id,
 			users, created_at, updated_at
 		FROM admin
 		WHERE id = $1
@@ -140,6 +301,8 @@ func (r *AdminRepository) GetByID(ctx context.Context, id int) (*models.Admin, e
 		&admin.PaymentUsername,
 		&admin.PaymentPassword,
 		&admin.Delivery,
+		&admin.BotToken,
+		&admin.BotChatId,
 		&admin.Users,
 		&admin.CreatedAt,
 		&admin.UpdatedAt,
@@ -161,7 +324,7 @@ func (r *AdminRepository) GetAll(ctx context.Context) ([]*models.Admin, error) {
 		SELECT 
 			id, user_name, email, company_name, system_id, system_token, 
 			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, delivery,
+			sms_password, sms_message, payment_username, payment_password, delivery, bot_token, bot_chat_id,
 			users, created_at, updated_at
 		FROM admin
 		ORDER BY id
@@ -192,6 +355,8 @@ func (r *AdminRepository) GetAll(ctx context.Context) ([]*models.Admin, error) {
 			&admin.PaymentUsername,
 			&admin.PaymentPassword,
 			&admin.Delivery,
+			&admin.BotToken,
+			&admin.BotChatId,
 			&admin.Users,
 			&admin.CreatedAt,
 			&admin.UpdatedAt,
@@ -215,7 +380,7 @@ func (r *AdminRepository) GetByEmail(ctx context.Context, email string) (*models
 		SELECT 
 			id, user_name, email, company_name, system_id, system_token, 
 			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, delivery,
+			sms_password, sms_message, payment_username, payment_password, delivery, bot_token, bot_chat_id,
 			users, created_at, updated_at
 		FROM admin
 		WHERE email = $1
@@ -237,6 +402,8 @@ func (r *AdminRepository) GetByEmail(ctx context.Context, email string) (*models
 		&admin.SmsMessage,
 		&admin.PaymentUsername,
 		&admin.PaymentPassword,
+		&admin.BotToken,
+		&admin.BotChatId,
 		&admin.Delivery,
 		&admin.Users,
 		&admin.CreatedAt,
@@ -259,7 +426,7 @@ func (r *AdminRepository) GetByUserNameAndSystemID(ctx context.Context, userName
 		SELECT 
 			id, user_name, email, company_name, system_id, system_token, 
 			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, delivery,
+			sms_password, sms_message, payment_username, payment_password, delivery, bot_token, bot_chat_id,
 			users, created_at, updated_at
 		FROM admin
 		WHERE user_name = $1 AND system_id = $2
@@ -282,6 +449,8 @@ func (r *AdminRepository) GetByUserNameAndSystemID(ctx context.Context, userName
 		&admin.PaymentUsername,
 		&admin.PaymentPassword,
 		&admin.Delivery,
+		&admin.BotToken,
+		&admin.BotChatId,
 		&admin.Users,
 		&admin.CreatedAt,
 		&admin.UpdatedAt,
@@ -303,7 +472,7 @@ func (r *AdminRepository) GetByCredentials(ctx context.Context, userName, system
 		SELECT 
 			id, user_name, email, company_name, system_id, system_token, 
 			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, delivery,
+			sms_password, sms_message, payment_username, payment_password, delivery, bot_token, bot_chat_id,
 			users, created_at, updated_at
 		FROM admin
 		WHERE user_name = $1 AND system_id = $2 AND email = $3
@@ -326,6 +495,8 @@ func (r *AdminRepository) GetByCredentials(ctx context.Context, userName, system
 		&admin.PaymentUsername,
 		&admin.PaymentPassword,
 		&admin.Delivery,
+		&admin.BotToken,
+		&admin.BotChatId,
 		&admin.Users,
 		&admin.CreatedAt,
 		&admin.UpdatedAt,
@@ -384,62 +555,6 @@ func (r *AdminRepository) UpdateSmsToken(ctx context.Context, id int, token stri
 	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
 		return utils.ErrUserNotFound
-	}
-
-	return nil
-}
-
-// Update updates an admin - including delivery field
-func (r *AdminRepository) Update(ctx context.Context, id int, admin *models.Admin) error {
-	query := `
-        UPDATE admin
-        SET 
-            user_name = $2,
-            email = $3,
-            company_name = $4,
-            system_id = $5,
-            sms_email = $6,
-            sms_password = $7,
-            sms_message = $8,
-            payment_username = $9,
-            payment_password = $10,
-            delivery = $11
-        WHERE id = $1
-        RETURNING updated_at
-    `
-
-	err := r.db.QueryRow(ctx, query,
-		id,
-		admin.UserName,
-		admin.Email,
-		admin.CompanyName,
-		admin.SystemID,
-		admin.SmsEmail,
-		admin.SmsPassword,
-		admin.SmsMessage,
-		admin.PaymentUsername,
-		admin.PaymentPassword,
-		admin.Delivery,
-	).Scan(&admin.UpdatedAt)
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return utils.ErrUserNotFound
-		}
-
-		// Check for unique constraint violations
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23505" { // unique_violation
-				if strings.Contains(pgErr.Message, "admin_email_unique") {
-					return utils.NewAppError(utils.ErrResourceAlreadyExists, "Email already exists", 409)
-				} else if strings.Contains(pgErr.Message, "admin_username_systemid_unique") {
-					return utils.NewAppError(utils.ErrResourceAlreadyExists, "Username and system ID combination already exists", 409)
-				}
-			}
-		}
-
-		return err
 	}
 
 	return nil

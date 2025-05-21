@@ -20,6 +20,8 @@ type Admin struct {
 	SmsMessage             string     `json:"sms_message"`
 	PaymentUsername        string     `json:"payment_username"`
 	PaymentPassword        string     `json:"payment_password"` // Password is not exposed in JSON responses
+	BotToken               string     `json:"bot_token"`
+	BotChatId              string     `json:"bot_chat_id"`
 	Delivery               int        `json:"delivery"`
 	Users                  int        `json:"users"`
 	SubscriptionTierID     *int       `json:"subscription_tier_id"`
@@ -45,6 +47,8 @@ type AdminCreateRequest struct {
 	SmsMessage         string `json:"sms_message"`
 	PaymentUsername    string `json:"payment_username"`
 	PaymentPassword    string `json:"payment_password"`
+	BotToken           string `json:"bot_token"`
+	BotChatId          string `json:"bot_chat_id"`
 	SubscriptionTierID *int   `json:"subscription_tier_id"`
 }
 
@@ -62,6 +66,8 @@ type AdminUpdateRequest struct {
 	SmsToken           string `json:"sms_token"`
 	PaymentUsername    string `json:"payment_username"`
 	PaymentPassword    string `json:"payment_password"`
+	BotToken           string `json:"bot_token"`
+	BotChatId          string `json:"bot_chat_id"`
 	AdminID            int    `json:"admin_id,omitempty"`
 	SubscriptionTierID *int   `json:"subscription_tier_id"`
 }
@@ -90,6 +96,8 @@ type AdminResponse struct {
 	SmsTokenUpdatedTime    time.Time  `json:"sms_token_updated_time"`
 	PaymentUsername        string     `json:"payment_username"`
 	PaymentPassword        string     `json:"payment_password"`
+	BotToken               string     `json:"bot_token"`
+	BotChatId              string     `json:"bot_chat_id"`
 	Users                  int        `json:"users"`
 	SubscriptionTierID     *int       `json:"subscription_tier_id"`
 	SubscriptionTierName   string     `json:"subscription_tier_name,omitempty"`
@@ -116,6 +124,8 @@ func (a *Admin) ToResponse() AdminResponse {
 		SmsEmail:               a.SmsEmail,
 		SmsMessage:             a.SmsMessage,
 		SmsPassword:            a.SmsPassword,
+		BotToken:               a.BotToken,
+		BotChatId:              a.BotChatId,
 		SmsTokenUpdatedTime:    a.SmsTokenUpdatedTime,
 		PaymentUsername:        a.PaymentUsername,
 		PaymentPassword:        a.PaymentPassword,
