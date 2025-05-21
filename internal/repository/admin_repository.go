@@ -4,10 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-
-	// "fmt"
 	"strings"
-	// "time"
 
 	"mobilka/internal/models"
 	"mobilka/internal/utils"
@@ -274,72 +271,35 @@ func (r *AdminRepository) Update(ctx context.Context, id int, admin *models.Admi
 
 // GetByID retrieves an admin by ID
 func (r *AdminRepository) GetByID(ctx context.Context, id int) (*models.Admin, error) {
-	query := `
-		SELECT 
-			id, user_name, email, company_name, system_id, system_token, 
-			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, delivery, bot_token, bot_chat_id,
-			users, created_at, updated_at
-		FROM admin
-		WHERE id = $1
-	`
+	// Check if bot columns exist
+	var botColumnsExist bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 
+			FROM information_schema.columns 
+			WHERE table_name='admin' AND column_name='bot_token'
+		)
+	`).Scan(&botColumnsExist)
+
+	if err != nil {
+		return nil, err
+	}
 
 	var admin models.Admin
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&admin.ID,
-		&admin.UserName,
-		&admin.Email,
-		&admin.CompanyName,
-		&admin.SystemID,
-		&admin.SystemToken,
-		&admin.SystemTokenUpdatedTime,
-		&admin.SmsToken,
-		&admin.SmsTokenUpdatedTime,
-		&admin.SmsEmail,
-		&admin.SmsPassword,
-		&admin.SmsMessage,
-		&admin.PaymentUsername,
-		&admin.PaymentPassword,
-		&admin.Delivery,
-		&admin.BotToken,
-		&admin.BotChatId,
-		&admin.Users,
-		&admin.CreatedAt,
-		&admin.UpdatedAt,
-	)
+	var query string
 
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, utils.ErrUserNotFound
-		}
-		return nil, err
-	}
+	if botColumnsExist {
+		query = `
+			SELECT 
+				id, user_name, email, company_name, system_id, system_token, 
+				system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
+				sms_password, sms_message, payment_username, payment_password, 
+				delivery, bot_token, bot_chat_id, users, created_at, updated_at
+			FROM admin
+			WHERE id = $1
+		`
 
-	return &admin, nil
-}
-
-// GetAll retrieves all admins
-func (r *AdminRepository) GetAll(ctx context.Context) ([]*models.Admin, error) {
-	query := `
-		SELECT 
-			id, user_name, email, company_name, system_id, system_token, 
-			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, delivery, bot_token, bot_chat_id,
-			users, created_at, updated_at
-		FROM admin
-		ORDER BY id
-	`
-
-	rows, err := r.db.Query(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var admins []*models.Admin
-	for rows.Next() {
-		var admin models.Admin
-		err := rows.Scan(
+		err = r.db.QueryRow(ctx, query, id).Scan(
 			&admin.ID,
 			&admin.UserName,
 			&admin.Email,
@@ -361,9 +321,152 @@ func (r *AdminRepository) GetAll(ctx context.Context) ([]*models.Admin, error) {
 			&admin.CreatedAt,
 			&admin.UpdatedAt,
 		)
-		if err != nil {
-			return nil, err
+	} else {
+		query = `
+			SELECT 
+				id, user_name, email, company_name, system_id, system_token, 
+				system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
+				sms_password, sms_message, payment_username, payment_password, 
+				delivery, users, created_at, updated_at
+			FROM admin
+			WHERE id = $1
+		`
+
+		err = r.db.QueryRow(ctx, query, id).Scan(
+			&admin.ID,
+			&admin.UserName,
+			&admin.Email,
+			&admin.CompanyName,
+			&admin.SystemID,
+			&admin.SystemToken,
+			&admin.SystemTokenUpdatedTime,
+			&admin.SmsToken,
+			&admin.SmsTokenUpdatedTime,
+			&admin.SmsEmail,
+			&admin.SmsPassword,
+			&admin.SmsMessage,
+			&admin.PaymentUsername,
+			&admin.PaymentPassword,
+			&admin.Delivery,
+			&admin.Users,
+			&admin.CreatedAt,
+			&admin.UpdatedAt,
+		)
+	}
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, utils.ErrUserNotFound
 		}
+		return nil, err
+	}
+
+	return &admin, nil
+}
+
+// GetAll retrieves all admins
+func (r *AdminRepository) GetAll(ctx context.Context) ([]*models.Admin, error) {
+	// Check if bot columns exist
+	var botColumnsExist bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 
+			FROM information_schema.columns 
+			WHERE table_name='admin' AND column_name='bot_token'
+		)
+	`).Scan(&botColumnsExist)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var query string
+
+	if botColumnsExist {
+		query = `
+			SELECT 
+				id, user_name, email, company_name, system_id, system_token, 
+				system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
+				sms_password, sms_message, payment_username, payment_password, 
+				delivery, bot_token, bot_chat_id, users, created_at, updated_at
+			FROM admin
+			ORDER BY id
+		`
+	} else {
+		query = `
+			SELECT 
+				id, user_name, email, company_name, system_id, system_token, 
+				system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
+				sms_password, sms_message, payment_username, payment_password, 
+				delivery, users, created_at, updated_at
+			FROM admin
+			ORDER BY id
+		`
+	}
+
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var admins []*models.Admin
+
+	for rows.Next() {
+		var admin models.Admin
+
+		if botColumnsExist {
+			err := rows.Scan(
+				&admin.ID,
+				&admin.UserName,
+				&admin.Email,
+				&admin.CompanyName,
+				&admin.SystemID,
+				&admin.SystemToken,
+				&admin.SystemTokenUpdatedTime,
+				&admin.SmsToken,
+				&admin.SmsTokenUpdatedTime,
+				&admin.SmsEmail,
+				&admin.SmsPassword,
+				&admin.SmsMessage,
+				&admin.PaymentUsername,
+				&admin.PaymentPassword,
+				&admin.Delivery,
+				&admin.BotToken,
+				&admin.BotChatId,
+				&admin.Users,
+				&admin.CreatedAt,
+				&admin.UpdatedAt,
+			)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			err := rows.Scan(
+				&admin.ID,
+				&admin.UserName,
+				&admin.Email,
+				&admin.CompanyName,
+				&admin.SystemID,
+				&admin.SystemToken,
+				&admin.SystemTokenUpdatedTime,
+				&admin.SmsToken,
+				&admin.SmsTokenUpdatedTime,
+				&admin.SmsEmail,
+				&admin.SmsPassword,
+				&admin.SmsMessage,
+				&admin.PaymentUsername,
+				&admin.PaymentPassword,
+				&admin.Delivery,
+				&admin.Users,
+				&admin.CreatedAt,
+				&admin.UpdatedAt,
+			)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		admins = append(admins, &admin)
 	}
 
@@ -376,39 +479,88 @@ func (r *AdminRepository) GetAll(ctx context.Context) ([]*models.Admin, error) {
 
 // GetByEmail retrieves an admin by email
 func (r *AdminRepository) GetByEmail(ctx context.Context, email string) (*models.Admin, error) {
-	query := `
-		SELECT 
-			id, user_name, email, company_name, system_id, system_token, 
-			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, delivery, bot_token, bot_chat_id,
-			users, created_at, updated_at
-		FROM admin
-		WHERE email = $1
-	`
+	// Check if bot columns exist
+	var botColumnsExist bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 
+			FROM information_schema.columns 
+			WHERE table_name='admin' AND column_name='bot_token'
+		)
+	`).Scan(&botColumnsExist)
+
+	if err != nil {
+		return nil, err
+	}
 
 	var admin models.Admin
-	err := r.db.QueryRow(ctx, query, email).Scan(
-		&admin.ID,
-		&admin.UserName,
-		&admin.Email,
-		&admin.CompanyName,
-		&admin.SystemID,
-		&admin.SystemToken,
-		&admin.SystemTokenUpdatedTime,
-		&admin.SmsToken,
-		&admin.SmsTokenUpdatedTime,
-		&admin.SmsEmail,
-		&admin.SmsPassword,
-		&admin.SmsMessage,
-		&admin.PaymentUsername,
-		&admin.PaymentPassword,
-		&admin.BotToken,
-		&admin.BotChatId,
-		&admin.Delivery,
-		&admin.Users,
-		&admin.CreatedAt,
-		&admin.UpdatedAt,
-	)
+	var query string
+
+	if botColumnsExist {
+		query = `
+			SELECT 
+				id, user_name, email, company_name, system_id, system_token, 
+				system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
+				sms_password, sms_message, payment_username, payment_password, 
+				delivery, bot_token, bot_chat_id, users, created_at, updated_at
+			FROM admin
+			WHERE email = $1
+		`
+
+		err = r.db.QueryRow(ctx, query, email).Scan(
+			&admin.ID,
+			&admin.UserName,
+			&admin.Email,
+			&admin.CompanyName,
+			&admin.SystemID,
+			&admin.SystemToken,
+			&admin.SystemTokenUpdatedTime,
+			&admin.SmsToken,
+			&admin.SmsTokenUpdatedTime,
+			&admin.SmsEmail,
+			&admin.SmsPassword,
+			&admin.SmsMessage,
+			&admin.PaymentUsername,
+			&admin.PaymentPassword,
+			&admin.Delivery,
+			&admin.BotToken,
+			&admin.BotChatId,
+			&admin.Users,
+			&admin.CreatedAt,
+			&admin.UpdatedAt,
+		)
+	} else {
+		query = `
+			SELECT 
+				id, user_name, email, company_name, system_id, system_token, 
+				system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
+				sms_password, sms_message, payment_username, payment_password, 
+				delivery, users, created_at, updated_at
+			FROM admin
+			WHERE email = $1
+		`
+
+		err = r.db.QueryRow(ctx, query, email).Scan(
+			&admin.ID,
+			&admin.UserName,
+			&admin.Email,
+			&admin.CompanyName,
+			&admin.SystemID,
+			&admin.SystemToken,
+			&admin.SystemTokenUpdatedTime,
+			&admin.SmsToken,
+			&admin.SmsTokenUpdatedTime,
+			&admin.SmsEmail,
+			&admin.SmsPassword,
+			&admin.SmsMessage,
+			&admin.PaymentUsername,
+			&admin.PaymentPassword,
+			&admin.Delivery,
+			&admin.Users,
+			&admin.CreatedAt,
+			&admin.UpdatedAt,
+		)
+	}
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -422,39 +574,88 @@ func (r *AdminRepository) GetByEmail(ctx context.Context, email string) (*models
 
 // GetByUserNameAndSystemID retrieves an admin by username and system ID
 func (r *AdminRepository) GetByUserNameAndSystemID(ctx context.Context, userName, systemID string) (*models.Admin, error) {
-	query := `
-		SELECT 
-			id, user_name, email, company_name, system_id, system_token, 
-			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, delivery, bot_token, bot_chat_id,
-			users, created_at, updated_at
-		FROM admin
-		WHERE user_name = $1 AND system_id = $2
-	`
+	// Check if bot columns exist
+	var botColumnsExist bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 
+			FROM information_schema.columns 
+			WHERE table_name='admin' AND column_name='bot_token'
+		)
+	`).Scan(&botColumnsExist)
+
+	if err != nil {
+		return nil, err
+	}
 
 	var admin models.Admin
-	err := r.db.QueryRow(ctx, query, userName, systemID).Scan(
-		&admin.ID,
-		&admin.UserName,
-		&admin.Email,
-		&admin.CompanyName,
-		&admin.SystemID,
-		&admin.SystemToken,
-		&admin.SystemTokenUpdatedTime,
-		&admin.SmsToken,
-		&admin.SmsTokenUpdatedTime,
-		&admin.SmsEmail,
-		&admin.SmsPassword,
-		&admin.SmsMessage,
-		&admin.PaymentUsername,
-		&admin.PaymentPassword,
-		&admin.Delivery,
-		&admin.BotToken,
-		&admin.BotChatId,
-		&admin.Users,
-		&admin.CreatedAt,
-		&admin.UpdatedAt,
-	)
+	var query string
+
+	if botColumnsExist {
+		query = `
+			SELECT 
+				id, user_name, email, company_name, system_id, system_token, 
+				system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
+				sms_password, sms_message, payment_username, payment_password, 
+				delivery, bot_token, bot_chat_id, users, created_at, updated_at
+			FROM admin
+			WHERE user_name = $1 AND system_id = $2
+		`
+
+		err = r.db.QueryRow(ctx, query, userName, systemID).Scan(
+			&admin.ID,
+			&admin.UserName,
+			&admin.Email,
+			&admin.CompanyName,
+			&admin.SystemID,
+			&admin.SystemToken,
+			&admin.SystemTokenUpdatedTime,
+			&admin.SmsToken,
+			&admin.SmsTokenUpdatedTime,
+			&admin.SmsEmail,
+			&admin.SmsPassword,
+			&admin.SmsMessage,
+			&admin.PaymentUsername,
+			&admin.PaymentPassword,
+			&admin.Delivery,
+			&admin.BotToken,
+			&admin.BotChatId,
+			&admin.Users,
+			&admin.CreatedAt,
+			&admin.UpdatedAt,
+		)
+	} else {
+		query = `
+			SELECT 
+				id, user_name, email, company_name, system_id, system_token, 
+				system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
+				sms_password, sms_message, payment_username, payment_password, 
+				delivery, users, created_at, updated_at
+			FROM admin
+			WHERE user_name = $1 AND system_id = $2
+		`
+
+		err = r.db.QueryRow(ctx, query, userName, systemID).Scan(
+			&admin.ID,
+			&admin.UserName,
+			&admin.Email,
+			&admin.CompanyName,
+			&admin.SystemID,
+			&admin.SystemToken,
+			&admin.SystemTokenUpdatedTime,
+			&admin.SmsToken,
+			&admin.SmsTokenUpdatedTime,
+			&admin.SmsEmail,
+			&admin.SmsPassword,
+			&admin.SmsMessage,
+			&admin.PaymentUsername,
+			&admin.PaymentPassword,
+			&admin.Delivery,
+			&admin.Users,
+			&admin.CreatedAt,
+			&admin.UpdatedAt,
+		)
+	}
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -468,39 +669,88 @@ func (r *AdminRepository) GetByUserNameAndSystemID(ctx context.Context, userName
 
 // GetByCredentials retrieves an admin by username, system ID, and email
 func (r *AdminRepository) GetByCredentials(ctx context.Context, userName, systemID, email string) (*models.Admin, error) {
-	query := `
-		SELECT 
-			id, user_name, email, company_name, system_id, system_token, 
-			system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
-			sms_password, sms_message, payment_username, payment_password, delivery, bot_token, bot_chat_id,
-			users, created_at, updated_at
-		FROM admin
-		WHERE user_name = $1 AND system_id = $2 AND email = $3
-	`
+	// Check if bot columns exist
+	var botColumnsExist bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 
+			FROM information_schema.columns 
+			WHERE table_name='admin' AND column_name='bot_token'
+		)
+	`).Scan(&botColumnsExist)
+
+	if err != nil {
+		return nil, err
+	}
 
 	var admin models.Admin
-	err := r.db.QueryRow(ctx, query, userName, systemID, email).Scan(
-		&admin.ID,
-		&admin.UserName,
-		&admin.Email,
-		&admin.CompanyName,
-		&admin.SystemID,
-		&admin.SystemToken,
-		&admin.SystemTokenUpdatedTime,
-		&admin.SmsToken,
-		&admin.SmsTokenUpdatedTime,
-		&admin.SmsEmail,
-		&admin.SmsPassword,
-		&admin.SmsMessage,
-		&admin.PaymentUsername,
-		&admin.PaymentPassword,
-		&admin.Delivery,
-		&admin.BotToken,
-		&admin.BotChatId,
-		&admin.Users,
-		&admin.CreatedAt,
-		&admin.UpdatedAt,
-	)
+	var query string
+
+	if botColumnsExist {
+		query = `
+			SELECT 
+				id, user_name, email, company_name, system_id, system_token, 
+				system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
+				sms_password, sms_message, payment_username, payment_password, 
+				delivery, bot_token, bot_chat_id, users, created_at, updated_at
+			FROM admin
+			WHERE user_name = $1 AND system_id = $2 AND email = $3
+		`
+
+		err = r.db.QueryRow(ctx, query, userName, systemID, email).Scan(
+			&admin.ID,
+			&admin.UserName,
+			&admin.Email,
+			&admin.CompanyName,
+			&admin.SystemID,
+			&admin.SystemToken,
+			&admin.SystemTokenUpdatedTime,
+			&admin.SmsToken,
+			&admin.SmsTokenUpdatedTime,
+			&admin.SmsEmail,
+			&admin.SmsPassword,
+			&admin.SmsMessage,
+			&admin.PaymentUsername,
+			&admin.PaymentPassword,
+			&admin.Delivery,
+			&admin.BotToken,
+			&admin.BotChatId,
+			&admin.Users,
+			&admin.CreatedAt,
+			&admin.UpdatedAt,
+		)
+	} else {
+		query = `
+			SELECT 
+				id, user_name, email, company_name, system_id, system_token, 
+				system_token_updated_time, sms_token, sms_token_updated_time, sms_email, 
+				sms_password, sms_message, payment_username, payment_password, 
+				delivery, users, created_at, updated_at
+			FROM admin
+			WHERE user_name = $1 AND system_id = $2 AND email = $3
+		`
+
+		err = r.db.QueryRow(ctx, query, userName, systemID, email).Scan(
+			&admin.ID,
+			&admin.UserName,
+			&admin.Email,
+			&admin.CompanyName,
+			&admin.SystemID,
+			&admin.SystemToken,
+			&admin.SystemTokenUpdatedTime,
+			&admin.SmsToken,
+			&admin.SmsTokenUpdatedTime,
+			&admin.SmsEmail,
+			&admin.SmsPassword,
+			&admin.SmsMessage,
+			&admin.PaymentUsername,
+			&admin.PaymentPassword,
+			&admin.Delivery,
+			&admin.Users,
+			&admin.CreatedAt,
+			&admin.UpdatedAt,
+		)
+	}
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -511,8 +761,6 @@ func (r *AdminRepository) GetByCredentials(ctx context.Context, userName, system
 
 	return &admin, nil
 }
-
-// Let's ensure the UpdateSystemToken and UpdateSmsToken methods in internal/repository/admin_repository.go are correctly implemented
 
 // UpdateSystemToken updates an admin's system token
 func (r *AdminRepository) UpdateSystemToken(ctx context.Context, id int, token string) error {
