@@ -24,7 +24,7 @@ func NewAdminHandler(adminService *service.AdminService) *AdminHandler {
 	}
 }
 
-// Create handles creating a new admin - with optional bot fields
+// Create handles creating a new admin
 func (h *AdminHandler) Create(c *fiber.Ctx) error {
 	var req models.AdminCreateRequest
 
@@ -63,9 +63,6 @@ func (h *AdminHandler) Create(c *fiber.Ctx) error {
 			"message": "System id is required",
 		})
 	}
-
-	// Bot token and bot chat ID validation is now optional
-	// to handle both old and updated database schema versions
 
 	// Create admin
 	admin, err := h.adminService.Create(c.Context(), &req)
@@ -232,6 +229,24 @@ func (h *AdminHandler) Update(c *fiber.Ctx) error {
 				fmt.Printf("Setting req.Delivery to: %d\n", req.Delivery)
 			}
 		}
+
+		// Check if bot_token is in the request
+		if botToken, exists := requestMap["bot_token"]; exists {
+			fmt.Printf("Found bot_token in raw map: %v\n", botToken)
+			if req.BotToken == "" {
+				req.BotToken = fmt.Sprintf("%v", botToken)
+				fmt.Printf("Setting req.BotToken to: %s\n", req.BotToken)
+			}
+		}
+
+		// Check if bot_chat_id is in the request
+		if botChatID, exists := requestMap["bot_chat_id"]; exists {
+			fmt.Printf("Found bot_chat_id in raw map: %v\n", botChatID)
+			if req.BotChatID == "" {
+				req.BotChatID = fmt.Sprintf("%v", botChatID)
+				fmt.Printf("Setting req.BotChatID to: %s\n", req.BotChatID)
+			}
+		}
 	}
 
 	// Update admin
@@ -259,65 +274,65 @@ func (h *AdminHandler) Update(c *fiber.Ctx) error {
 
 // ChangeDelivery handles updating an admin's delivery status
 func (h *AdminHandler) ChangeDelivery(c *fiber.Ctx) error {
-    // Get admin ID from context
-    adminID, ok := c.Locals(utils.ContextUserID).(int)
-    if !ok {
-        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-            "status":  utils.StatusError,
-            "message": "Unauthorized",
-        })
-    }
+	// Get admin ID from context
+	adminID, ok := c.Locals(utils.ContextUserID).(int)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Unauthorized",
+		})
+	}
 
-    // Parse request body
-    var req struct {
-        Delivery int `json:"delivery"`
-    }
+	// Parse request body
+	var req struct {
+		Delivery int `json:"delivery"`
+	}
 
-    if err := c.BodyParser(&req); err != nil {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-            "status":  utils.StatusError,
-            "message": "Invalid request body",
-        })
-    }
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Invalid request body",
+		})
+	}
 
-    // Get the admin to update
-    admin, err := h.adminService.GetByID(c.Context(), adminID)
-    if err != nil {
-        if err == utils.ErrUserNotFound {
-            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-                "status":  utils.StatusError,
-                "message": "Admin not found",
-            })
-        }
-        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-            "status":  utils.StatusError,
-            "message": "Failed to retrieve admin",
-        })
-    }
+	// Get the admin to update
+	admin, err := h.adminService.GetByID(c.Context(), adminID)
+	if err != nil {
+		if err == utils.ErrUserNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"status":  utils.StatusError,
+				"message": "Admin not found",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Failed to retrieve admin",
+		})
+	}
 
-    // Update admin's delivery status
-    admin.Delivery = req.Delivery
+	// Update admin's delivery status
+	admin.Delivery = req.Delivery
 
-    // Create an update request with just the delivery field
-    updateReq := &models.AdminUpdateRequest{
-        Delivery: req.Delivery,
-    }
+	// Create an update request with just the delivery field
+	updateReq := &models.AdminUpdateRequest{
+		Delivery: req.Delivery,
+	}
 
-    // Update admin
-    updatedAdmin, err := h.adminService.Update(c.Context(), adminID, updateReq)
-    if err != nil {
-        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-            "status":  utils.StatusError,
-            "message": "Failed to update delivery status: " + err.Error(),
-        })
-    }
+	// Update admin
+	updatedAdmin, err := h.adminService.Update(c.Context(), adminID, updateReq)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  utils.StatusError,
+			"message": "Failed to update delivery status: " + err.Error(),
+		})
+	}
 
-    // Return response
-    return c.Status(fiber.StatusOK).JSON(fiber.Map{
-        "status": utils.StatusSuccess,
-        "data":   updatedAdmin.ToResponse(),
-        "message": "Delivery status updated successfully",
-    })
+	// Return response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  utils.StatusSuccess,
+		"data":    updatedAdmin.ToResponse(),
+		"message": "Delivery status updated successfully",
+	})
 }
 
 // Delete handles deleting an admin

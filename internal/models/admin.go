@@ -14,14 +14,14 @@ type Admin struct {
 	SystemToken            string     `json:"system_token"`
 	SystemTokenUpdatedTime time.Time  `json:"system_token_updated_time"`
 	SmsToken               string     `json:"sms_token"`
-	SmsTokenUpdatedTime    time.Time  `json:"sms_token_updated_time"` // Added field
+	SmsTokenUpdatedTime    time.Time  `json:"sms_token_updated_time"`
 	SmsEmail               string     `json:"sms_email"`
-	SmsPassword            string     `json:"sms_password"` // Password is not exposed in JSON responses
+	SmsPassword            string     `json:"sms_password"`
 	SmsMessage             string     `json:"sms_message"`
 	PaymentUsername        string     `json:"payment_username"`
-	PaymentPassword        string     `json:"payment_password"` // Password is not exposed in JSON responses
+	PaymentPassword        string     `json:"payment_password"`
 	BotToken               string     `json:"bot_token"`
-	BotChatId              string     `json:"bot_chat_id"`
+	BotChatID              string     `json:"bot_chat_id"`
 	Delivery               int        `json:"delivery"`
 	Users                  int        `json:"users"`
 	SubscriptionTierID     *int       `json:"subscription_tier_id"`
@@ -33,7 +33,6 @@ type Admin struct {
 }
 
 // AdminCreateRequest represents the creation request for an admin
-
 type AdminCreateRequest struct {
 	UserName           string `json:"user_name" validate:"required"`
 	Email              string `json:"email" validate:"required,email"`
@@ -48,7 +47,7 @@ type AdminCreateRequest struct {
 	PaymentUsername    string `json:"payment_username"`
 	PaymentPassword    string `json:"payment_password"`
 	BotToken           string `json:"bot_token"`
-	BotChatId          string `json:"bot_chat_id"`
+	BotChatID          string `json:"bot_chat_id"`
 	SubscriptionTierID *int   `json:"subscription_tier_id"`
 }
 
@@ -67,7 +66,7 @@ type AdminUpdateRequest struct {
 	PaymentUsername    string `json:"payment_username"`
 	PaymentPassword    string `json:"payment_password"`
 	BotToken           string `json:"bot_token"`
-	BotChatId          string `json:"bot_chat_id"`
+	BotChatID          string `json:"bot_chat_id"`
 	AdminID            int    `json:"admin_id,omitempty"`
 	SubscriptionTierID *int   `json:"subscription_tier_id"`
 }
@@ -97,7 +96,7 @@ type AdminResponse struct {
 	PaymentUsername        string     `json:"payment_username"`
 	PaymentPassword        string     `json:"payment_password"`
 	BotToken               string     `json:"bot_token"`
-	BotChatId              string     `json:"bot_chat_id"`
+	BotChatID              string     `json:"bot_chat_id"`
 	Users                  int        `json:"users"`
 	SubscriptionTierID     *int       `json:"subscription_tier_id"`
 	SubscriptionTierName   string     `json:"subscription_tier_name,omitempty"`
@@ -124,11 +123,11 @@ func (a *Admin) ToResponse() AdminResponse {
 		SmsEmail:               a.SmsEmail,
 		SmsMessage:             a.SmsMessage,
 		SmsPassword:            a.SmsPassword,
-		BotToken:               a.BotToken,
-		BotChatId:              a.BotChatId,
 		SmsTokenUpdatedTime:    a.SmsTokenUpdatedTime,
 		PaymentUsername:        a.PaymentUsername,
 		PaymentPassword:        a.PaymentPassword,
+		BotToken:               a.BotToken,
+		BotChatID:              a.BotChatID,
 		Users:                  a.Users,
 		SubscriptionTierID:     a.SubscriptionTierID,
 		SubscriptionStatus:     a.SubscriptionStatus,

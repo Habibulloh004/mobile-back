@@ -1,4 +1,4 @@
-version: "3.8"
+version: '3.8'
 
 services:
   api:
@@ -20,8 +20,6 @@ services:
     volumes:
       - ./uploads:/app/uploads
     restart: unless-stopped
-    mem_limit: 500m # Maksimal 500MB
-    cpus: 1.0 # Maksimal 1 CPU
 
   postgres:
     image: postgres:15-alpine
@@ -34,47 +32,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
-    mem_limit: 1g # Maksimal 1GB
-    cpus: 0.5 # Maksimal 0.5 CPU
 
 volumes:
   postgres_data:
-
-  
-# version: '3.8'
-
-# services:
-#   api:
-#     build:
-#       context: .
-#       dockerfile: Dockerfile
-#     ports:
-#       - "8080:8080"
-#     depends_on:
-#       - postgres
-#     environment:
-#       - DB_HOST=postgres
-#       - DB_PORT=5432
-#       - DB_USER=postgres
-#       - DB_PASSWORD=postgres
-#       - DB_NAME=fiberapp
-#       - PORT=8080
-#       - ENVIRONMENT=development
-#     volumes:
-#       - ./uploads:/app/uploads
-#     restart: unless-stopped
-
-#   postgres:
-#     image: postgres:15-alpine
-#     environment:
-#       - POSTGRES_USER=postgres
-#       - POSTGRES_PASSWORD=postgres
-#       - POSTGRES_DB=fiberapp
-#     ports:
-#       - "5432:5432"
-#     volumes:
-#       - postgres_data:/var/lib/postgresql/data
-#     restart: unless-stopped
-
-# volumes:
-#   postgres_data:

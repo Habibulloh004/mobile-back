@@ -3,15 +3,11 @@ package service
 import (
 	"context"
 	"fmt"
-
-	// "errors"
-	// "fmt"
 	"time"
 
 	"mobilka/internal/models"
 	"mobilka/internal/repository"
 	"mobilka/internal/utils"
-	// "github.com/google/uuid"
 )
 
 // AdminService handles admin operations
@@ -67,7 +63,7 @@ func (s *AdminService) Create(ctx context.Context, req *models.AdminCreateReques
 		PaymentUsername:        req.PaymentUsername,
 		PaymentPassword:        paymentPasswordHash,
 		BotToken:               req.BotToken,
-		BotChatId:              req.BotChatId,
+		BotChatID:              req.BotChatID,
 	}
 
 	// Save to database
@@ -203,16 +199,19 @@ func (s *AdminService) Update(ctx context.Context, id int, req *models.AdminUpda
 		admin.PaymentPassword = paymentPasswordHash
 	}
 
+	// Update bot fields
 	if req.BotToken != "" {
 		admin.BotToken = req.BotToken
+		fmt.Printf("Setting bot_token to: %s\n", req.BotToken)
 	}
 
-	if req.BotChatId != "" {
-		admin.BotChatId = req.BotChatId
+	if req.BotChatID != "" {
+		admin.BotChatID = req.BotChatID
+		fmt.Printf("Setting bot_chat_id to: %s\n", req.BotChatID)
 	}
 
-	// Update in database for non-token fields
-	fmt.Println("Updating non-token fields including delivery")
+	// Update in database for non-token fields (including bot fields)
+	fmt.Println("Updating non-token fields including delivery and bot fields")
 	err = s.adminRepo.Update(ctx, id, admin)
 	if err != nil {
 		fmt.Printf("Error updating non-token fields: %v\n", err)
